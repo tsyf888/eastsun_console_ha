@@ -1,7 +1,7 @@
 name: 构建并发布加载项镜像
 
 # 推送涉及加载项目录的改动即重建；版本号取自 eastsun_console/config.yaml。
-# 产物：ghcr.io/tysf888/{arch}-eastsun_console_ha:<版本>（config.yaml 的 image 字段引用同一命名）。
+# 产物：ghcr.io/tsyf888/{arch}-eastsun_console_ha:<版本>（config.yaml 的 image 字段引用同一命名）。
 on:
   push:
     branches: [main]
