@@ -1,0 +1,341 @@
+"""go2rtc 流媒体网关。
+
+为什么需要：浏览器不能直接播放摄像头 RTSP。原方案是后端用 ffmpeg 转 MJPEG（4fps、高 CPU、
+无声音）；go2rtc 支持 WebRTC（亚秒延迟、有声音）并可自动回退 MSE/HLS/MP4/MJPEG，且只向摄像
+头拉一路流，多端同时观看不增加摄像头连接数。
+
+工作方式：
+- 设置项 go2rtc_url 指向 go2rtc API（默认端口 1984），如 http://192.168.2.203:1984；
+  HAOS 加载项内可走 hassio 内网域名（http://a0d7b954_go2rtc:1984），无需对局域网暴露端口。
+- 每路摄像头打开时注册为 go2rtc 命名流（PUT /api/streams?name=…&src=rtsp://…），
+  RTSP 地址（含账密）只在本服务与 go2rtc 之间传递，浏览器只拿到流名。
+- 播放器页面与信令通过本服务同源反向代理 /go2rtc/… 访问：既兼容 Ingress 子路径，又避免跨域。
+  只放行播放器必需的 3 个静态文件和 /api/ws（WebRTC 信令 + MSE/HLS/MP4/MJPEG 全走此 WS），
+  不代理可改 go2rtc 配置的管理接口。
+- 媒体流（SRTP）由浏览器直连 go2rtc 的 WebRTC 端口，不经过本服务。
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from urllib.parse import urlsplit
+
+import aiohttp
+from aiohttp import WSMsgType, web
+
+log = logging.getLogger("home_console_server")
+
+# HAOS 内网候选地址：
+# - AlexxIT go2rtc 加载项在 hassio 内网的名字是「仓库哈希_slug」（AlexxIT 仓库哈希 a0d7b954）
+# - AlexxIT/WebRTC 自定义集成自带的 go2rtc 跑在 HA Core 容器的 1984 端口
+ADDON_CANDIDATES = ("http://a0d7b954_go2rtc:1984", "http://homeassistant:1984")
+
+# 播放器 iframe 只允许访问这些 go2rtc 自带的静态文件；其余路径（/api/config、/api/streams
+# 写入接口等）一律不代理，避免开放 go2rtc 管理面。
+ALLOWED_STATIC = {"stream.html", "video-stream.js", "video-rtc.js", "favicon.ico"}
+
+# 播放器回退尾部：WebRTC 模式按探测结果动态拼在最前（WebRTC UDP → WebRTC/TCP → MSE → …）。
+PLAYER_MODES_TAIL = "mse,hls,mp4,mjpeg"
+# go2rtc 的 WebRTC 媒体端口（UDP/TCP 同号）。浏览器走 WebRTC 的前提是它能直连这个端口；
+# 部分部署（如没映射 UDP 的容器 / 跨网络）只有 1984 可达，这时必须从下发模式里剔除对应 webrtc 模式，
+# 否则播放器把 webrtc 与 mse 绑在同一条 WS 上协商，webrtc 失败会拖垮 mse 报 "streams: EOF"。
+WEBRTC_PORT = 8555
+
+# 替换 go2rtc 自带 video-stream.js 的补丁版：官方 onpcvideo 会比较 rtc/mse 优先级
+# （video-rtc.js：「Video+Audio > Video, H265 > H264, WebRTC > MSE」）。摄像头 RTSP 源带 AAC
+# 音频时 MSE 是「H264+AAC」(0x311)，WebRTC 带不了 AAC 只有「H264 视频」(0x220)，按官方规则
+# 永远输给 MSE——表现就是明明 ICE 连得上却一直显示 MSE（AlexxIT/WebRTC 卡片的旧版播放器没有
+# 这段比较，所以 HA 卡片能出 RTC 而我们出不了）。改成与卡片一致：WebRTC 真正出画面就切 RTC
+# （低延迟优先），出不了画面时 MSE 继续兜底，行为与官方回退链无差别。
+PATCHED_VIDEO_STREAM_JS = """import {VideoRTC} from './video-rtc.js';
+
+class VideoStream extends VideoRTC {
+    set divMode(value) {
+        this.querySelector('.mode').innerText = value;
+        this.querySelector('.status').innerText = '';
+    }
+
+    set divError(value) {
+        const state = this.querySelector('.mode').innerText;
+        if (state !== 'loading') return;
+        this.querySelector('.mode').innerText = 'error';
+        this.querySelector('.status').innerText = value;
+    }
+
+    oninit() {
+        super.oninit();
+
+        this.innerHTML = `
+        <style>
+        video-stream {
+            position: relative;
+        }
+        .info {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        </style>
+        <div class="info">
+            <div class="status"></div>
+            <div class="mode"></div>
+        </div>
+        `;
+
+        const info = this.querySelector('.info');
+        this.insertBefore(this.video, info);
+    }
+
+    onconnect() {
+        const result = super.onconnect();
+        if (result) this.divMode = 'loading';
+        return result;
+    }
+
+    ondisconnect() {
+        super.ondisconnect();
+    }
+
+    onopen() {
+        const result = super.onopen();
+
+        this.onmessage['stream'] = msg => {
+            switch (msg.type) {
+                case 'error':
+                    this.divError = msg.value;
+                    break;
+                case 'mse':
+                case 'hls':
+                case 'mp4':
+                case 'mjpeg':
+                    this.divMode = msg.type.toUpperCase();
+                    break;
+            }
+        };
+
+        return result;
+    }
+
+    onclose() {
+        return super.onclose();
+    }
+
+    onpcvideo(video2) {
+        // 补丁点：不走官方的 rtc/mse 优先级比较。WebRTC 连接已建立且 video2 真的解出了画面
+        // （videoWidth > 0 排除纯音频轨道）就切 RTC；否则保持原状让 MSE/HLS/MP4/MJPEG 兜底。
+        if (this.pc && video2.readyState >= 2 && video2.videoWidth > 0) {
+            this.video.srcObject = video2.srcObject;
+            this.play();
+
+            this.pcState = WebSocket.OPEN;
+            this.wsState = WebSocket.CLOSED;
+            if (this.ws) {
+                this.ws.close();
+                this.ws = null;
+            }
+            this.divMode = 'RTC';
+        }
+        video2.srcObject = null;
+    }
+}
+
+customElements.define('video-stream', VideoStream);
+"""
+
+CHECK_TIMEOUT = aiohttp.ClientTimeout(total=6, connect=4)
+PROXY_TIMEOUT = aiohttp.ClientTimeout(total=None, connect=10, sock_connect=10, sock_read=None)
+# MSE/MJPEG 关键帧消息可能较大，两侧 WS 都放宽到 16MB。
+WS_MAX_SIZE = 16 * 1024 * 1024
+
+# 逐跳头不能转发；accept-encoding 不转发，让上游返回未压缩内容（aiohttp 客户端不会再帮我们解压）。
+HOP_BY_HOP = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+              "te", "trailer", "trailers", "transfer-encoding", "upgrade", "host"}
+DROP_RESPONSE = HOP_BY_HOP | {"content-length", "content-encoding"}
+
+
+def normalize_base(value: str) -> str | None:
+    """校验并归一化 go2rtc 地址：必须是 http(s) URL，去掉末尾斜杠。"""
+    value = (value or "").strip()
+    if not value:
+        return ""
+    parts = urlsplit(value)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        return None
+    return parts.geturl().rstrip("/")
+
+
+async def check(base_url: str) -> dict:
+    """探测 go2rtc 是否可用（GET /api/streams）；不可用抛 RuntimeError。"""
+    async with aiohttp.ClientSession(timeout=CHECK_TIMEOUT) as session:
+        try:
+            async with session.get(f"{base_url}/api/streams") as response:
+                if response.status != 200:
+                    raise RuntimeError(f"HTTP {response.status}")
+                data = await response.json()
+        except aiohttp.ClientError as error:
+            raise RuntimeError(str(error) or "连接失败") from error
+    return data if isinstance(data, dict) else {}
+
+
+async def _webrtc_udp_reachable(base_url: str) -> bool:
+    """从本服务视角探测 go2rtc 的 WebRTC UDP 端口是否开放。
+
+    浏览器需直连此端口收发 SRTP；探测不通则从下发模式剔除 webrtc，避免它拖垮 mse。
+    UDP 无连接，用「发包后短时间内收到 ICMP 端口不可达 / 连接被拒」判不可达。
+    """
+    host = urlsplit(base_url).hostname
+    if not host:
+        return False
+    loop = asyncio.get_running_loop()
+    try:
+        transport, _ = await asyncio.wait_for(
+            loop.create_datagram_endpoint(asyncio.DatagramProtocol, remote_addr=(host, WEBRTC_PORT)),
+            timeout=CHECK_TIMEOUT.connect)
+    except (OSError, asyncio.TimeoutError):
+        return False
+    try:
+        transport.sendto(b"\x00")
+        await asyncio.sleep(0.6)  # 等待可能的 ICMP 不可达
+        return True
+    finally:
+        transport.close()
+
+
+async def _webrtc_tcp_reachable(base_url: str) -> bool:
+    """探测 go2rtc 的 WebRTC TCP 端口：TCP 能建立连接即可走 webrtc/tcp 播放模式。
+
+    部分部署 UDP 被路由器/防火墙拦掉，但 TCP 同号端口可达（AlexxIT/WebRTC 卡片即靠这级回退出画面）。
+    """
+    host = urlsplit(base_url).hostname
+    if not host:
+        return False
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(host, WEBRTC_PORT), timeout=CHECK_TIMEOUT.connect)
+    except (OSError, asyncio.TimeoutError):
+        return False
+    writer.close()
+    try:
+        await writer.wait_closed()
+    except (OSError, asyncio.TimeoutError):
+        pass
+    return True
+
+
+async def player_modes(base_url: str) -> str:
+    """按 WebRTC UDP/TCP 可达性拼下发模式串：UDP 通只给 webrtc，UDP 不通但 TCP 通给 webrtc/tcp，都不通从 mse 开始。
+
+    两级不能同时下发：video-rtc.js 只要见到 webrtc/tcp 就会丢弃全部 UDP 候选
+    （`if (this.mode.includes('webrtc/tcp') && msg.value.includes(' udp ')) return;`），
+    导致本来可用的 UDP 路径被废掉、只剩 TCP，反而更容易整体回退到 MSE。
+    """
+    udp_ok, tcp_ok = await asyncio.gather(_webrtc_udp_reachable(base_url), _webrtc_tcp_reachable(base_url))
+    head = ["webrtc"] if udp_ok else ["webrtc/tcp"] if tcp_ok else []
+    if not head:
+        log.info("go2rtc 的 WebRTC 端口 %s（UDP/TCP）均不可达，本次画面只用 MSE/HLS/MP4/MJPEG", WEBRTC_PORT)
+        return PLAYER_MODES_TAIL
+    return ",".join(head + PLAYER_MODES_TAIL.split(","))
+
+
+async def detect(candidates: tuple[str, ...] = ADDON_CANDIDATES) -> str | None:
+    """按候选顺序探测 go2rtc，返回第一个可用的归一化地址。"""
+    for candidate in candidates:
+        base_url = normalize_base(candidate)
+        if not base_url:
+            continue
+        try:
+            await check(base_url)
+            log.info("自动发现 go2rtc：%s", base_url)
+            return base_url
+        except Exception:
+            continue
+    return None
+
+
+async def ensure_stream(base_url: str, name: str, src: str) -> None:
+    """把一路 RTSP 注册（或更新）为 go2rtc 命名流。
+
+    PUT 创建；若同名流已存在（go2rtc 重启后内存中仍有旧注册的极端情况），用 PATCH 改源。
+    go2rtc 只在有观看者时才真正连接摄像头，注册本身不产生连接。
+    """
+    params = {"name": name, "src": src}
+    async with aiohttp.ClientSession(timeout=CHECK_TIMEOUT) as session:
+        async with session.put(f"{base_url}/api/streams", params=params) as response:
+            if response.status < 300:
+                return
+            put_detail = (await response.text())[:200]
+        async with session.request("PATCH", f"{base_url}/api/streams", params=params) as response:
+            if response.status >= 300:
+                detail = (await response.text())[:200]
+                raise RuntimeError(f"go2rtc 注册流失败（PUT {response.status}：{put_detail}；PATCH：{detail}）")
+
+
+async def proxy_static(request: web.Request, base_url: str) -> web.StreamResponse:
+    """反向代理 go2rtc 播放器静态文件（白名单内）；video-stream.js 用补丁版替换（见 PATCHED_VIDEO_STREAM_JS）。"""
+    tail = request.match_info.get("tail", "")
+    if tail not in ALLOWED_STATIC:
+        raise web.HTTPNotFound()
+    if tail == "video-stream.js":
+        return web.Response(text=PATCHED_VIDEO_STREAM_JS, content_type="application/javascript", charset="utf-8")
+    headers = {key: value for key, value in request.headers.items()
+               if key.lower() not in HOP_BY_HOP and key.lower() != "accept-encoding"}
+    async with aiohttp.ClientSession(timeout=PROXY_TIMEOUT) as session:
+        async with session.get(f"{base_url}/{tail}", headers=headers) as upstream:
+            response = web.StreamResponse(status=upstream.status)
+            content_type = upstream.headers.get("Content-Type")
+            if content_type:
+                response.headers["Content-Type"] = content_type
+            await response.prepare(request)
+            async for chunk in upstream.content.iter_chunked(65536):
+                await response.write(chunk)
+            await response.write_eof()
+            return response
+
+
+async def proxy_ws(request: web.Request, base_url: str) -> web.WebSocketResponse:
+    """反向代理 /api/ws：WebRTC 信令与 MSE/HLS/MP4/MJPEG 全部走这一条 WebSocket。"""
+    client_ws = web.WebSocketResponse(heartbeat=30, max_msg_size=WS_MAX_SIZE)
+    await client_ws.prepare(request)
+
+    upstream_url = f"{base_url}/api/ws"
+    if request.query_string:
+        upstream_url = f"{upstream_url}?{request.query_string}"
+    session = aiohttp.ClientSession()
+    try:
+        async with session.ws_connect(upstream_url, heartbeat=30, max_msg_size=WS_MAX_SIZE) as upstream_ws:
+            async def pump_to_upstream() -> None:
+                async for message in client_ws:
+                    if message.type == WSMsgType.TEXT:
+                        await upstream_ws.send_str(message.data)
+                    elif message.type == WSMsgType.BINARY:
+                        await upstream_ws.send_bytes(message.data)
+                    else:
+                        break
+                if not upstream_ws.closed:
+                    await upstream_ws.close()
+
+            async def pump_to_client() -> None:
+                async for message in upstream_ws:
+                    if message.type == WSMsgType.TEXT:
+                        await client_ws.send_str(message.data)
+                    elif message.type == WSMsgType.BINARY:
+                        await client_ws.send_bytes(message.data)
+                    else:
+                        break
+                if not client_ws.closed:
+                    await client_ws.close()
+
+            await asyncio.gather(pump_to_upstream(), pump_to_client())
+    except (aiohttp.ClientError, ConnectionResetError, asyncio.TimeoutError) as error:
+        # 浏览器关弹窗/切页时客户端先断开，写回会抛 ConnectionResetError——属正常结束，静默处理。
+        log.debug("go2rtc WS 代理结束：%s", error)
+    finally:
+        await session.close()
+    return client_ws
