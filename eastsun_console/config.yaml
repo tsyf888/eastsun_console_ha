@@ -7,7 +7,7 @@ arch:
   - aarch64
   - amd64
 # image: ghcr.io/tsyf888/{arch}-eastsun_console_ha
-image: registry.cn-hangzhou.aliyuncs.com/tsyf888/{arch}-eastsun_console_ha
+image: crpi-0sb04gsiqxixd7ve.cn-hangzhou.personal.cr.aliyuncs.com/tsyf888/{arch}-eastsun_console_ha
 init: false
 startup: application
 homeassistant_api: true
