@@ -1,7 +1,10 @@
 name: 构建并发布加载项镜像
 
 # 推送涉及加载项目录的改动即重建；版本号取自 eastsun_console/config.yaml。
-# 产物：ghcr.io/tsyf888/{arch}-eastsun_console_ha:<版本>（config.yaml 的 image 字段引用同一命名）。
+# 产物（双推送）：
+#   - GHCR: ghcr.io/tsyf888/{arch}-eastsun_console_ha:<版本>（境外用户 / 默认）
+#   - 阿里云 ACR: $ACR_REGISTRY/$ACR_NAMESPACE/{arch}-eastsun_console_ha:<版本>（国内用户）
+# 国内用户侧仓库的 config.yaml 把 image 字段指向 ACR 即可，两边镜像内容一致。
 on:
   push:
     branches: [main]
@@ -13,6 +16,9 @@ on:
 env:
   ARCHITECTURES: '["amd64", "aarch64"]'
   IMAGE_NAME: eastsun_console_ha
+  # TODO: 改成你的阿里云 ACR 实例地域与命名空间（个人版免费）
+  ACR_REGISTRY: registry.cn-hangzhou.aliyuncs.com
+  ACR_NAMESPACE: tsyf888
 
 permissions:
   contents: read
@@ -65,3 +71,16 @@ jobs:
           version: ${{ needs.init.outputs.version }}
           push: "true"
           cosign: "false"
+      # 构建只跑一次：从 GHCR 拉取刚推好的镜像，换 tag 再推到 ACR，避免二次构建。
+      - name: 同步镜像到阿里云 ACR
+        env:
+          GHCR_IMAGE: ghcr.io/${{ matrix.image }}
+          ACR_IMAGE: ${{ env.ACR_REGISTRY }}/${{ env.ACR_NAMESPACE }}/${{ matrix.arch }}-${{ env.IMAGE_NAME }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login "${{ env.ACR_REGISTRY }}" -u "${{ secrets.ACR_USERNAME }}" --password-stdin
+          for tag in "${{ needs.init.outputs.version }}" latest; do
+            docker pull "$GHCR_IMAGE:$tag"
+            docker tag "$GHCR_IMAGE:$tag" "$ACR_IMAGE:$tag"
+            docker push "$ACR_IMAGE:$tag"
+          done

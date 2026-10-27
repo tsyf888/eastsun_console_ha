@@ -6,7 +6,8 @@ url: https://github.com/tsyf888/eastsun_console_ha
 arch:
   - aarch64
   - amd64
-image: ghcr.io/tsyf888/{arch}-eastsun_console_ha
+# image: ghcr.io/tsyf888/{arch}-eastsun_console_ha
+image: registry.cn-hangzhou.aliyuncs.com/tsyf888/{arch}-eastsun_console_ha
 init: false
 startup: application
 homeassistant_api: true
