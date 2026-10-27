@@ -17,7 +17,7 @@ env:
   ARCHITECTURES: '["amd64", "aarch64"]'
   IMAGE_NAME: eastsun_console_ha
   # TODO: 改成你的阿里云 ACR 实例地域与命名空间（个人版免费）
-  ACR_REGISTRY: registry.cn-hangzhou.aliyuncs.com
+  ACR_REGISTRY: crpi-0sb04gsigxiqd7ve.cn-hangzhou.personal.cr.aliyuncs.com
   ACR_NAMESPACE: tsyf888
 
 permissions:
