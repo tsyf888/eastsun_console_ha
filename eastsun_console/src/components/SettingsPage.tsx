@@ -597,7 +597,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
         {tab === 'display' && <>
           <section className="settings-card">
             <div className="settings-card__heading"><span className="tile__chip"><House size={20} /></span><div><h3>名称</h3></div></div>
-            <label className="settings-field"><span>家庭名称</span><input type="text" value={settings.brandTitle ?? '家庭控制'} maxLength={7} onChange={(e) => { const value = e.target.value; setSettings({ ...settings, brandTitle: value }); void save({ brandTitle: value }, setThemeMessage, '家庭名称已保存'); }} placeholder="家庭控制" /><small>显示在导航栏顶部与网页标题，最长 7 个中文字</small></label>
+            <label className="settings-field"><span>家庭名称</span><input type="text" value={settings.brandTitle ?? '家庭控制'} maxLength={7} onChange={(e) => { const value = e.target.value; setSettings({ ...settings, brandTitle: value }); void save({ brandTitle: value }, setThemeMessage, '家庭名称已保存'); }} placeholder="家庭控制" /><small>显示在导航栏顶部与网页标题，最长 10 个中文字</small></label>
             <label className="settings-field"><span>首页标题</span><input type="text" value={settings.homeTitle} maxLength={12} onChange={(e) => { const value = e.target.value; setSettings({ ...settings, homeTitle: value }); void save({ homeTitle: value }, setThemeMessage, '首页标题已保存'); }} placeholder="我的家庭" /></label>
             <FormMessage message={themeMessage} />
           </section>
