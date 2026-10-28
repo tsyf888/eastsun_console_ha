@@ -75,37 +75,24 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   const toggleCover = () => (active ? onClose(cover.id) : onOpen(cover.id));
   // 左上角电源键：开 → 停 → 关 → 停 循环，每次点击只下发一个指令，phase 决定按钮下一次的语义。
   const [powerPhase, setPowerPhase] = useState<CoverPowerPhase>(() => initialPowerPhase(cover));
-  // 最近一次经电源键下发的指令，用于区分“自己停在了半路”和“外部改变了终态”。
-  const lastCommandRef = useRef<'open' | 'close' | 'stop' | null>(null);
-  // 外部（HA 自动化 / 其它入口）把窗帘移到与 phase 相反的终态后，折叠掉“无事可做”的 phase：
-  // 例如刚打开就被外部关闭，下一次点击应回到“打开”，而不是先落两次空操作。
-  // 只处理真正的终态，且不干扰用户自己“停在半路”后按循环继续操作的情况。
+  // 开合到位后把按钮切回“反向动作”：否则按钮会一直停在“停止”，下一次点击发出无效的停止指令。
+  // 只有带位置反馈的设备能可靠判断“完全开/关”，无位置反馈的设备保持四段循环。
   useEffect(() => {
-    if (!cover.available) return;
-    const fullyClosed = cover.state === 'closed';
-    // 有位置反馈时必须到 100% 才算全开，避免“关到一半停住”被误判为已全开。
-    const fullyOpen = cover.state === 'open' && (cover.position === undefined || cover.position >= 100);
-    if (fullyClosed) {
-      setPowerPhase((phase) => (phase === 'stopThenClose' || phase === 'close' ? 'open' : phase));
-    } else if (fullyOpen && !(cover.position === undefined && lastCommandRef.current === 'stop')) {
-      // 无位置反馈的设备在“停止”后无法判断是否全开，保持 phase 交给下一次点击决定。
-      setPowerPhase((phase) => (phase === 'stopThenOpen' || phase === 'open' ? 'close' : phase));
-    }
-  }, [cover.available, cover.state, cover.position]);
+    if (!cover.available || cover.position === undefined) return;
+    if (cover.position >= 100) setPowerPhase('close');
+    else if (cover.position <= 0) setPowerPhase('open');
+  }, [cover.available, cover.position]);
   const cyclePower = () => {
     if (powerPhase === 'open') {
-      lastCommandRef.current = 'open';
       onOpen(cover.id);
       setPowerPhase(cover.supportsStop ? 'stopThenClose' : 'close');
       return;
     }
     if (powerPhase === 'close') {
-      lastCommandRef.current = 'close';
       onClose(cover.id);
       setPowerPhase(cover.supportsStop ? 'stopThenOpen' : 'open');
       return;
     }
-    lastCommandRef.current = 'stop';
     onStop(cover.id);
     setPowerPhase(powerPhase === 'stopThenClose' ? 'close' : 'open');
   };

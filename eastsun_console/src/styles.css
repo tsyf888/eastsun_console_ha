@@ -834,9 +834,9 @@ strong { font-weight: 600; }
 .settings { display: grid; gap: 16px; max-width: 760px; width: 100%; min-width: 0; }
 .settings > * { min-width: 0; }
 .settings-tabs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
-.settings-tabs { display: flex; gap: 4px; min-width: 0; padding: 4px; overflow-x: auto; border: 1px solid var(--glass-border); border-radius: 999px; background: var(--glass); box-shadow: var(--highlight); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); scrollbar-width: none; }
+.settings-tabs { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; padding: 4px; overflow-x: auto; border: 1px solid var(--glass-border); border-radius: 999px; background: var(--glass); box-shadow: var(--highlight); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); scrollbar-width: none; }
 .settings-tabs::-webkit-scrollbar { display: none; }
-.settings-tabs button { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-size: 13.5px; white-space: nowrap; transition: background-color .18s, color .18s; }
+.settings-tabs button { display: inline-flex; flex: none; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-size: 13.5px; white-space: nowrap; transition: background-color .18s, color .18s; }
 .settings-tabs button:hover { color: var(--text); }
 .settings-tabs button[aria-selected="true"] { background: var(--surface-3); color: var(--text); font-weight: 600; box-shadow: var(--highlight); }
 .settings-tabs button[aria-selected="true"] svg { color: var(--accent); }
@@ -1043,6 +1043,7 @@ strong { font-weight: 600; }
   .hero__actions .hero__settings { display: grid; }
   .settings-field-row { grid-template-columns: minmax(0, 1fr); }
   .settings-tabs-bar { align-items: stretch; flex-direction: column; }
+  .settings-tabs { flex-wrap: nowrap; }
   .settings-audit li { grid-template-columns: auto minmax(0, 1fr); }
   .settings-audit--with-user li { grid-template-columns: auto minmax(0, 1fr); }
   .settings-audit--with-user .settings-audit__user { grid-column: 2 / -1; }

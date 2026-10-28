@@ -465,7 +465,7 @@ class Settings:
     whitelist: list[str] = field(default_factory=list)
     theme: str = "dark"  # dark | light | auto（日出到日落浅色，其余深色）
     home_title: str = DEFAULT_HOME_TITLE  # 首页标题，同时用作导航入口名称；不能为空
-    brand_title: str = DEFAULT_BRAND_TITLE  # 家庭名称（导航栏品牌、网页标题），最长 7 个中文字
+    brand_title: str = DEFAULT_BRAND_TITLE  # 家庭名称（导航栏品牌、网页标题），最长 10 个中文字
     accent: str = ACCENTS[0]  # 强调色（设置 → 显示），所有屏幕共用
     season_rules: bool = False  # 季节规则（设置 → 自动化）：启用后由控制台在 HA 中维护季节辅助元素和自动化
     season_demo: str = "summer"  # 演示模式下的季节；HA 模式的季节保存在 HA 的季节辅助元素中
