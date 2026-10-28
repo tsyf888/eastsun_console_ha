@@ -36,7 +36,7 @@ import { useWeather } from './useWeather';
 import { useAlmanac } from './useAlmanac';
 import { AlmanacDialog } from './components/AlmanacDialog';
 import { weatherIcon } from './weather';
-import { applyAccent, applyTheme, resolveTheme } from './theme';
+import { applyAccent, applyStyle, applyTheme, resolveTheme } from './theme';
 
 type Page = 'home' | 'room' | 'settings' | 'music';
 
@@ -157,6 +157,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   useEffect(() => { if (theme) applyTheme(theme); }, [theme]);
   const accent = server.status?.accent;
   useEffect(() => { if (accent) applyAccent(accent); }, [accent]);
+  const style = server.status?.style;
+  useEffect(() => { if (style) applyStyle(style); }, [style]);
 
   // 主页时间 / 天气卡片缩放：每块屏幕各自保存在本机（localStorage），设置 → 自定义 → 主页显示里调整。
   useEffect(() => {

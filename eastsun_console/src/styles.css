@@ -133,6 +133,167 @@
 :root[data-theme="light"][data-accent="mint"] { --accent: #00c7be; --accent-rgb: 0, 199, 190; --accent-ink: #ffffff; --accent-hover: #33d2cb; }
 :root[data-theme="light"][data-accent="cyan"] { --accent: #32ade6; --accent-rgb: 50, 173, 230; --accent-ink: #ffffff; --accent-hover: #5abdec; }
 
+/* ---------- UI 风格（设置 → 显示）：在主题与强调色之上覆盖表面材质、圆角、阴影与背景氛围 ---------- */
+/* iOS26 玻璃：更通透的玻璃、更大的圆角与更强的高光 */
+:root[data-style="glass26"] {
+  --radius: 28px;
+  --radius-sm: 18px;
+  --glass: rgba(40, 46, 56, .38);
+  --glass-strong: rgba(34, 40, 48, .55);
+  --glass-border: rgba(255, 255, 255, .22);
+  --glass-blur: blur(36px) saturate(200%);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .26);
+  --sheen: rgba(255, 255, 255, .1);
+  --hairline: rgba(255, 255, 255, .1);
+  --hairline-strong: rgba(255, 255, 255, .2);
+}
+:root[data-theme="light"][data-style="glass26"] {
+  --glass: rgba(255, 255, 255, .52);
+  --glass-strong: rgba(255, 255, 255, .74);
+  --glass-border: rgba(255, 255, 255, .8);
+  --glass-blur: blur(36px) saturate(210%);
+  --shadow: 0 26px 54px -28px rgba(55, 45, 28, .55);
+  --sheen: rgba(255, 255, 255, .92);
+}
+
+/* 果冻多彩：高饱和渐变背景 + 带强调色晕染的卡片 */
+:root[data-style="jelly"] {
+  --radius: 26px;
+  --radius-sm: 16px;
+  --glass: rgba(30, 34, 44, .58);
+  --glass-border: rgba(255, 255, 255, .16);
+  --glass-blur: blur(26px) saturate(190%);
+  --sheen: rgba(255, 255, 255, .1);
+}
+:root[data-theme="light"][data-style="jelly"] {
+  --glass: rgba(255, 255, 255, .74);
+  --glass-border: rgba(255, 255, 255, .9);
+}
+:root[data-style="jelly"] .app-shell {
+  background:
+    radial-gradient(1100px 620px at 6% -12%, rgba(var(--accent-rgb), .42), transparent 58%),
+    radial-gradient(900px 560px at 104% -8%, rgba(72, 170, 255, .36), transparent 60%),
+    radial-gradient(1000px 640px at 92% 112%, rgba(255, 110, 200, .32), transparent 62%),
+    radial-gradient(1100px 700px at 20% 118%, rgba(120, 240, 200, .26), transparent 64%),
+    var(--bg);
+  background-attachment: fixed;
+}
+:root[data-style="jelly"] .tile {
+  background: linear-gradient(155deg, rgba(var(--accent-rgb), .3), rgba(255, 255, 255, .04) 42%, rgba(96, 196, 255, .2) 78%), var(--glass);
+}
+
+/* 素墨黑白：灰阶纸面、直角细边框、无投影 */
+:root[data-style="ink"] {
+  --radius: 10px;
+  --radius-sm: 6px;
+  --glass: rgba(18, 18, 18, .92);
+  --glass-strong: rgba(24, 24, 24, .96);
+  --glass-border: rgba(255, 255, 255, .16);
+  --glass-blur: none;
+  --shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .06);
+  --sheen: rgba(255, 255, 255, .015);
+  --hairline: rgba(255, 255, 255, .13);
+  --hairline-strong: rgba(255, 255, 255, .24);
+  --overlay: rgba(255, 255, 255, .05);
+}
+:root[data-theme="light"][data-style="ink"] {
+  --glass: rgba(250, 250, 248, .96);
+  --glass-strong: rgba(255, 255, 255, .98);
+  --glass-border: rgba(20, 20, 20, .22);
+  --shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --hairline: rgba(20, 20, 20, .18);
+  --hairline-strong: rgba(20, 20, 20, .3);
+}
+/* 素墨：去掉卡片右上角的彩色光晕，只留纸面与细线 */
+:root[data-style="ink"] .tile::before { opacity: 0 !important; }
+
+/* 夜航仪表仓：深色仪表盘、冷蓝描边、直角与网格背景 */
+:root[data-style="helm"] {
+  --bg: #050a10;
+  --rail: #070e16;
+  --glass: rgba(9, 18, 28, .82);
+  --glass-strong: rgba(12, 22, 33, .9);
+  --glass-border: rgba(112, 214, 255, .22);
+  --glass-blur: blur(14px) saturate(140%);
+  --radius: 8px;
+  --radius-sm: 5px;
+  --shadow: 0 0 0 1px rgba(112, 214, 255, .06), 0 12px 26px -20px #000;
+  --highlight: inset 0 1px 0 rgba(150, 230, 255, .1);
+  --sheen: rgba(112, 214, 255, .035);
+  --hairline: rgba(112, 214, 255, .14);
+  --hairline-strong: rgba(112, 214, 255, .26);
+  --overlay: rgba(112, 214, 255, .06);
+  --overlay-2: rgba(112, 214, 255, .12);
+}
+:root[data-theme="light"][data-style="helm"] {
+  /* 日间仪表：仍是冷色面板，只是底色变浅 */
+  --bg: #d7dde3;
+  --rail: #cfd6dd;
+  --glass: rgba(238, 244, 249, .9);
+  --glass-strong: rgba(246, 250, 253, .96);
+  --glass-border: rgba(38, 72, 96, .22);
+  --shadow: 0 0 0 1px rgba(38, 72, 96, .08), 0 12px 26px -20px rgba(20, 40, 55, .55);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .7);
+  --sheen: rgba(255, 255, 255, .5);
+  --hairline: rgba(38, 72, 96, .16);
+  --hairline-strong: rgba(38, 72, 96, .28);
+  --overlay: rgba(38, 72, 96, .06);
+  --overlay-2: rgba(38, 72, 96, .12);
+}
+:root[data-style="helm"] .app-shell {
+  background:
+    linear-gradient(rgba(112, 214, 255, .05) 1px, transparent 1px) 0 0 / 100% 28px,
+    linear-gradient(90deg, rgba(112, 214, 255, .05) 1px, transparent 1px) 0 0 / 28px 100%,
+    radial-gradient(900px 520px at 50% -20%, rgba(38, 140, 190, .25), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+/* 庭院新中式：纸色底、木色描边、宋体标题 */
+:root[data-style="courtyard"] {
+  --bg: #14110d;
+  --rail: #17130e;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --glass: rgba(28, 24, 18, .72);
+  --glass-strong: rgba(34, 29, 22, .86);
+  --glass-border: rgba(214, 184, 140, .22);
+  --glass-blur: blur(18px) saturate(125%);
+  --shadow: 0 16px 34px -22px rgba(0, 0, 0, .8);
+  --sheen: rgba(255, 236, 200, .05);
+  --hairline: rgba(214, 184, 140, .16);
+  --hairline-strong: rgba(214, 184, 140, .3);
+}
+:root[data-theme="light"][data-style="courtyard"] {
+  --bg: #ece3d2;
+  --rail: #e8dfcd;
+  --glass: rgba(255, 251, 243, .86);
+  --glass-strong: rgba(255, 253, 247, .95);
+  --glass-border: rgba(122, 88, 52, .24);
+  --shadow: 0 18px 40px -24px rgba(96, 70, 40, .45);
+  --sheen: rgba(255, 255, 255, .8);
+  --hairline: rgba(122, 88, 52, .18);
+  --hairline-strong: rgba(122, 88, 52, .32);
+}
+:root[data-style="courtyard"] .app-shell {
+  background:
+    radial-gradient(920px 560px at 12% -10%, rgba(196, 150, 96, .18), transparent 60%),
+    radial-gradient(880px 540px at 102% 108%, rgba(120, 150, 110, .14), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+}
+:root[data-style="courtyard"] .section-heading h2,
+:root[data-style="courtyard"] .settings-card__heading h3,
+:root[data-style="courtyard"] .side-nav__brand {
+  font-family: "Songti SC", "Noto Serif SC", "STSong", serif;
+  letter-spacing: .08em;
+}
+:root[data-style="courtyard"] .tile {
+  box-shadow: inset 0 0 0 1px rgba(150, 110, 66, .12), var(--shadow);
+}
+
 :root[data-theme="light"] .weather--night { --wx: #6c62c8; }
 :root[data-theme="light"] .weather--cloud { --wx: #7a8794; }
 :root[data-theme="light"] .weather--rain { --wx: #2f7fd6; }
@@ -933,6 +1094,40 @@ strong { font-weight: 600; }
 .settings-accents button > span { width: 24px; height: 24px; border-radius: 50%; background: var(--swatch); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
 .settings-accents button[aria-checked="true"] { border-color: var(--swatch); }
 .settings-accents button:focus-visible { outline: 2px solid var(--text-2); outline-offset: 2px; }
+
+/* 风格选择：每项带一块小预览，直观对比材质、圆角与配色 */
+.settings-styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(158px, 1fr)); gap: 8px; }
+.settings-style { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-sm); background: var(--overlay); color: var(--text-2); text-align: left; transition: border-color .18s, background-color .18s, color .18s; }
+.settings-style:hover { border-color: var(--hairline-strong); background: var(--surface-2); color: var(--text); }
+.settings-style[aria-checked="true"] { border-color: var(--accent); background: var(--overlay); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.settings-style:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.settings-style__preview { display: flex; flex: none; flex-direction: column; gap: 3px; width: 48px; height: 38px; padding: 7px 6px; border-radius: 9px; background: var(--surface-2); overflow: hidden; }
+.settings-style__preview i { display: block; height: 5px; border-radius: 3px; background: var(--text-3); opacity: .5; }
+.settings-style__preview i:nth-child(2) { width: 74%; }
+.settings-style__preview i:nth-child(3) { width: 88%; }
+.settings-style__text { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.settings-style__text strong { font-size: 12.5px; font-weight: 600; }
+.settings-style__text small { color: var(--text-3); font-size: 11px; line-height: 1.35; }
+/* 预览按风格示意（预览本身不受当前风格令牌影响，保证对比直观） */
+.settings-style__preview--ios17 { border-radius: 10px; background: linear-gradient(160deg, #2f353d, #1b1f24); }
+.settings-style__preview--ios17 i { background: rgba(255, 255, 255, .34); }
+.settings-style__preview--glass26 { border: 1px solid rgba(255, 255, 255, .45); border-radius: 13px; background: linear-gradient(160deg, rgba(255, 255, 255, .38), rgba(118, 178, 255, .3)); }
+.settings-style__preview--glass26 i { border-radius: 4px; background: rgba(255, 255, 255, .7); }
+.settings-style__preview--jelly { border-radius: 12px; background: linear-gradient(150deg, #ff9f6b, #ff6fae 48%, #7b8cff); }
+.settings-style__preview--jelly i { border-radius: 5px; background: rgba(255, 255, 255, .74); }
+.settings-style__preview--ink { border-radius: 4px; background: #ececeb; }
+.settings-style__preview--ink i { border-radius: 1px; background: #2b2b2b; opacity: .78; }
+.settings-style__preview--helm { border: 1px solid rgba(100, 210, 255, .42); border-radius: 4px; background: #050b12; }
+.settings-style__preview--helm i { border-radius: 1px; background: rgba(100, 210, 255, .62); }
+.settings-style__preview--courtyard { border: 1px solid rgba(150, 110, 70, .38); border-radius: 6px; background: #f3e8d2; }
+.settings-style__preview--courtyard i { border-radius: 2px; background: #8a6a48; opacity: .72; }
+@media (max-width: 600px) {
+  .settings-styles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .settings-style { gap: 8px; padding: 8px 9px; }
+  .settings-style__preview { width: 40px; height: 34px; }
+  .settings-style__text small { display: none; }
+}
+
 .settings-scale { display: grid; grid-template-columns: auto minmax(0, 1fr) 3.2em auto; align-items: center; gap: 12px; padding-top: 4px; font-size: 14px; }
 .settings-scale__control { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .settings-scale__control .icon-button { width: 36px; height: 36px; }

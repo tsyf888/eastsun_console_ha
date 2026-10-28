@@ -3,7 +3,7 @@
  * 后端保管 HA 令牌并持有唯一的 HA 连接，自动发现设备并按黑白名单过滤；浏览器只接收目录、状态和布局，按实体请求控制。
  */
 import { apiPath } from './consoleApi';
-import type { Accent } from './theme';
+import type { Accent, Style } from './theme';
 import type { LayoutState } from './types';
 
 export type Season = 'summer' | 'winter';
@@ -162,6 +162,8 @@ export interface ServerStatus {
   tileScale?: number;
   /** 强调色（设置 → 显示），所有屏幕共用；旧服务没有时按琥珀。 */
   accent?: Accent;
+  /** UI 风格（设置 → 显示），所有屏幕共用；旧服务没有时按 iOS17 经典。 */
+  style?: Style;
   /** 季节（设置 → 自动化 → 季节规则）；未启用季节规则时为 null。 */
   season?: Season | null;
   /** 音乐页内嵌地址（设置 → 音乐）；为空表示未配置，不显示音乐入口。 */

@@ -97,3 +97,43 @@ export function cachedAccent(): Accent {
     return 'amber';
   }
 }
+
+/**
+ * UI 风格（设置 → 显示）：在主题与强调色之上换一套表面材质、圆角与阴影，可任意组合。
+ * iOS17 经典即原有的毛玻璃外观，作为默认值不写 data-style 属性。
+ */
+export const STYLES = [
+  { value: 'ios17', label: 'iOS17 经典', hint: '原有毛玻璃' },
+  { value: 'glass26', label: 'iOS26 玻璃', hint: '通透大圆角' },
+  { value: 'jelly', label: '果冻多彩', hint: '高饱和渐变' },
+  { value: 'ink', label: '素墨黑白', hint: '灰阶纸面' },
+  { value: 'helm', label: '夜航仪表仓', hint: '深色仪表' },
+  { value: 'courtyard', label: '庭院新中式', hint: '纸色木纹' },
+] as const;
+export type Style = (typeof STYLES)[number]['value'];
+
+const styleCacheKey = 'hass-home-console-style-v1';
+
+function isStyle(value: unknown): value is Style {
+  return STYLES.some((item) => item.value === value);
+}
+
+/** 写到根元素的 data-style（iOS17 经典为默认，不写属性），并记住给下次打开的首帧用。 */
+export function applyStyle(style: Style): void {
+  if (style === 'ios17') delete document.documentElement.dataset.style;
+  else document.documentElement.dataset.style = style;
+  try {
+    localStorage.setItem(styleCacheKey, style);
+  } catch {
+    // 浏览器禁用存储时只影响下次打开的首帧。
+  }
+}
+
+export function cachedStyle(): Style {
+  try {
+    const value = localStorage.getItem(styleCacheKey);
+    return isStyle(value) ? value : 'ios17';
+  } catch {
+    return 'ios17';
+  }
+}

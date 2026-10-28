@@ -38,7 +38,7 @@ from .ha import HaUpstream
 from .motion import PTZ_DIRECTIONS, MotionScreenshotter
 from .onvif import OnvifError, OnvifManager
 from .season import HELPER_ENTITY as SEASON_HELPER, SEASONS, SeasonRules
-from .store import ACCENTS, BRAND_TITLE_MAX, DEFAULT_BRAND_TITLE, DEFAULT_HOME_TITLE, HOME_TITLE_MAX, THEMES, TILE_SCALE_MAX, TILE_SCALE_MIN, USERNAME_MAX, USERNAME_RE, PASSWORD_MIN, PASSWORD_MAX, ACCOUNTS_MAX, Account, Store, clean_custom, hash_pin, id_list, is_tile_scale, verify_pin, OCCUPIED_STATES, weather_place
+from .store import ACCENTS, STYLES, BRAND_TITLE_MAX, DEFAULT_BRAND_TITLE, DEFAULT_HOME_TITLE, HOME_TITLE_MAX, THEMES, TILE_SCALE_MAX, TILE_SCALE_MIN, USERNAME_MAX, USERNAME_RE, PASSWORD_MIN, PASSWORD_MAX, ACCOUNTS_MAX, Account, Store, clean_custom, hash_pin, id_list, is_tile_scale, verify_pin, OCCUPIED_STATES, weather_place
 from .almanac import Almanac
 from .weather import Weather, WeatherError, valid_location
 
@@ -332,7 +332,7 @@ class ConsoleServer:
         return {"type": "status", "dataSource": settings.data_source, "controlEnabled": settings.control_enabled,
                 "motionCapture": settings.motion_capture,
                 "homeTitle": settings.home_title, "brandTitle": settings.brand_title, "theme": settings.theme,
-                "tileScale": settings.tile_scale, "accent": settings.accent, "season": self.season.season(),
+                "tileScale": settings.tile_scale, "accent": settings.accent, "style": settings.style, "season": self.season.season(),
                 "musicUrl": settings.music_url,
                 "allOffKinds": settings.all_off_kinds, "allOffScopes": settings.all_off_scopes,
                 "allOffEntities": settings.all_off_entities,
@@ -1073,6 +1073,12 @@ class ConsoleServer:
             if body["accent"] != settings.accent:
                 settings.accent = body["accent"]
                 changed.append("accent")
+        if "style" in body:
+            if body["style"] not in STYLES:
+                return web.json_response({"error": "不支持的界面风格"}, status=400)
+            if body["style"] != settings.style:
+                settings.style = body["style"]
+                changed.append("style")
         season_sync = False
         if "seasonRules" in body:
             if not isinstance(body["seasonRules"], bool):

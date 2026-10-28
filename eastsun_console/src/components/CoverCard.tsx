@@ -21,6 +21,11 @@ const powerPhaseLabels: Record<CoverPowerPhase, string> = {
   stopThenOpen: '停止',
 };
 
+/** 指令刚发出后的静默期：这段时间设备状态可能还是旧值或乐观值，按钮必须保持“停止”。 */
+const holdMs = 2_000;
+/** 兜底等待：设备一直不上报终态时也切回反向动作，避免按钮永远停在“停止”。 */
+const maxWaitMs = 60_000;
+
 /** 循环起点按当前状态推断：已关（或状态未知）从“打开”开始，其余从“关闭”开始。 */
 function initialPowerPhase(cover: CoverDevice): CoverPowerPhase {
   const closed = cover.position !== undefined ? cover.position <= 0 : cover.state === 'closed';
@@ -74,31 +79,55 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   // 左上角电源键：开 → 停 → 关 → 停 循环，每次点击只下发一个指令，phase 决定按钮下一次的语义。
   // 小卡空白处点击复用同一套逻辑，不再单独走“开/关反转”。
   const [powerPhase, setPowerPhase] = useState<CoverPowerPhase>(() => initialPowerPhase(cover));
-  // 开合到位后把按钮切回“反向动作”：否则按钮会一直停在“停止”，下一次点击发出无效的停止指令。
-  // 运动中（opening/closing）不校正，保证“停止”图标在整个运动过程中可见；终态要求状态与位置同时到位，
-  // 避免乐观更新提前写出的 open/closed 把停止图标瞬间刷掉。无位置反馈的设备只在确认关闭时校正。
+  // 乐观更新会在指令刚发出时就把状态写成终态，此时用设备状态反推按钮，“停止”会一闪而过。
+  // 因此记录本次下发的方向：运动期间一律保持“停止”，确认到位或兜底超时后再切成反向动作。
+  const intentRef = useRef<{ target: 'open' | 'close'; since: number } | null>(null);
+  const [recheckTick, setRecheckTick] = useState(0);
   useEffect(() => {
-    if (!cover.available) return;
+    if (!cover.available) { intentRef.current = null; return; }
+    const intent = intentRef.current;
+    if (intent) {
+      const elapsed = Date.now() - intent.since;
+      const moving = cover.state === 'opening' || cover.state === 'closing';
+      const arrived = intent.target === 'open'
+        ? cover.position !== undefined ? cover.position >= 99 : cover.state === 'open'
+        : cover.position !== undefined ? cover.position <= 1 : cover.state === 'closed';
+      // 刚下发指令（状态可能还是旧值或乐观值）或设备明确在运动中：继续显示“停止”。
+      if (elapsed < holdMs || moving) return;
+      if (arrived || elapsed >= maxWaitMs) {
+        intentRef.current = null;
+        setPowerPhase(intent.target === 'open' ? 'close' : 'open');
+      }
+      return;
+    }
+    // 没有待确认的操作（初始挂载、外部控制）：按设备终态同步按钮语义。
     if (cover.state === 'opening' || cover.state === 'closing') return;
     if (cover.position !== undefined) {
       if (cover.state === 'open' && cover.position >= 100) setPowerPhase('close');
       else if (cover.state === 'closed' && cover.position <= 0) setPowerPhase('open');
-      return;
-    }
-    if (cover.state === 'closed') setPowerPhase('open');
-  }, [cover.available, cover.state, cover.position]);
+    } else if (cover.state === 'closed') setPowerPhase('open');
+  }, [cover.available, cover.state, cover.position, recheckTick]);
+  // 等待到位期间每秒复查一次：HA 不一定在结束瞬间推送终态，只靠状态更新可能等不到。
+  useEffect(() => {
+    if (!intentRef.current) return;
+    const timer = window.setTimeout(() => setRecheckTick((value) => value + 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [powerPhase, recheckTick]);
   const cyclePower = () => {
     if (powerPhase === 'open') {
       onOpen(cover.id);
+      intentRef.current = { target: 'open', since: Date.now() };
       setPowerPhase(cover.supportsStop ? 'stopThenClose' : 'close');
       return;
     }
     if (powerPhase === 'close') {
       onClose(cover.id);
+      intentRef.current = { target: 'close', since: Date.now() };
       setPowerPhase(cover.supportsStop ? 'stopThenOpen' : 'open');
       return;
     }
     onStop(cover.id);
+    intentRef.current = null;
     setPowerPhase(powerPhase === 'stopThenClose' ? 'close' : 'open');
   };
   const powerIcon = powerPhase === 'open'

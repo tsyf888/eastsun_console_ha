@@ -2,11 +2,12 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles.css';
-import { applyAccent, applyTheme, cachedAccent, cachedTheme } from './theme';
+import { applyAccent, applyStyle, applyTheme, cachedAccent, cachedStyle, cachedTheme } from './theme';
 
-// 连接控制台服务之前先用上次的主题和强调色，避免首帧闪成默认配色。
+// 连接控制台服务之前先用上次的主题、强调色和风格，避免首帧闪成默认外观。
 applyTheme(cachedTheme());
 applyAccent(cachedAccent());
+applyStyle(cachedStyle());
 
 // 离线缓存与安装为应用：Service Worker 只能在 HTTPS 或本机地址下注册，HTTP 局域网地址下跳过；HAOS Ingress 子路径下不注册（没有意义且作用域受限）。
 const underIngress = location.pathname.startsWith('/api/hassio_ingress/');

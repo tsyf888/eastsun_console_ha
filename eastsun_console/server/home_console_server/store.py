@@ -26,6 +26,7 @@ DEFAULT_PIN = "1234"
 THEMES = ("dark", "light", "auto")
 ACCENTS = ("amber", "coral", "rose", "violet", "sky", "teal", "green",
            "blue", "indigo", "purple", "pink", "orange", "yellow", "mint", "cyan")  # 强调色，第一个为默认
+STYLES = ("ios17", "glass26", "jelly", "ink", "helm", "courtyard")  # UI 风格，第一个（iOS17 经典）为默认
 DEFAULT_HOME_TITLE = "我的家庭"
 HOME_TITLE_MAX = 12
 DEFAULT_HOME_SUBTITLE = ""
@@ -467,6 +468,7 @@ class Settings:
     home_title: str = DEFAULT_HOME_TITLE  # 首页标题，同时用作导航入口名称；不能为空
     brand_title: str = DEFAULT_BRAND_TITLE  # 家庭名称（导航栏品牌、网页标题），最长 10 个中文字
     accent: str = ACCENTS[0]  # 强调色（设置 → 显示），所有屏幕共用
+    style: str = STYLES[0]  # UI 风格（设置 → 显示）：在主题与强调色之上换表面材质、圆角与阴影
     season_rules: bool = False  # 季节规则（设置 → 自动化）：启用后由控制台在 HA 中维护季节辅助元素和自动化
     season_demo: str = "summer"  # 演示模式下的季节；HA 模式的季节保存在 HA 的季节辅助元素中
     tile_scale: int = TILE_SCALE_DEFAULT  # 设备格子缩放百分比（80–120），所有屏幕共用
@@ -500,6 +502,7 @@ class Settings:
             "theme": self.theme,
             "tileScale": self.tile_scale,
             "accent": self.accent,
+            "style": self.style,
             "seasonRules": self.season_rules,
             "musicUrl": self.music_url,
             "go2rtcUrl": self.go2rtc_url,
@@ -596,6 +599,7 @@ class Store:
             brand_title=str(raw.get("brandTitle") or DEFAULT_BRAND_TITLE)[:BRAND_TITLE_MAX],
             tile_scale=raw["tileScale"] if is_tile_scale(raw.get("tileScale")) else TILE_SCALE_DEFAULT,
             accent=raw.get("accent") if raw.get("accent") in ACCENTS else ACCENTS[0],
+            style=raw.get("style") if raw.get("style") in STYLES else STYLES[0],
             season_rules=raw.get("seasonRules") is True,
             season_demo=raw.get("seasonDemo") if raw.get("seasonDemo") in ("summer", "winter") else "summer",
             music_url=str(raw.get("musicUrl", "")),
@@ -623,6 +627,7 @@ class Store:
             "theme": settings.theme,
             "tileScale": settings.tile_scale,
             "accent": settings.accent,
+            "style": settings.style,
             "seasonRules": settings.season_rules,
             "seasonDemo": settings.season_demo,
             "musicUrl": settings.music_url,

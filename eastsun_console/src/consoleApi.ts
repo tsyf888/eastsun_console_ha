@@ -1,6 +1,6 @@
 /** 控制台后端的 HTTP 接口。管理接口依赖登录后下发的 HttpOnly 会话 Cookie。 */
 import type { CatalogueEntity, CustomConfig, LabelInfo, Season, ServerLayout } from './consoleClient';
-import type { Accent } from './theme';
+import type { Accent, Style } from './theme';
 
 export interface AdminSettings {
   haUrl: string;
@@ -14,6 +14,8 @@ export interface AdminSettings {
   theme: 'dark' | 'light' | 'auto';
   tileScale: number;
   accent: Accent;
+  /** UI 风格（设置 → 显示）：与主题、强调色组合使用。 */
+  style: Style;
   /** 季节规则：启用后由控制台在 HA 中维护季节辅助元素和三条季节自动化。 */
   seasonRules: boolean;
   /** 音乐页内嵌地址；为空表示未配置。 */

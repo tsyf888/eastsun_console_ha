@@ -1,4 +1,4 @@
-import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, ListChecks, LogOut, Minus, Music, Palette, Plus, Power, RotateCcw, Server, ShieldCheck, Sun, Trash2, Upload, UserPlus, Workflow, X } from 'lucide-react';
+import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, ListChecks, LogOut, Minus, Music, Palette, Plus, Power, RotateCcw, Server, ShieldCheck, Sparkles, Sun, Trash2, Upload, UserPlus, Workflow, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, KeyboardEvent } from 'react';
 import type { LucideIcon } from 'lucide-react';
@@ -6,7 +6,7 @@ import { ApiError, changePassword, createAccount, deleteAccount, getAccounts, ge
 import type { AccountInfo, AdminSettings, AuditEntry, DiscoveredEntities, PersonConfig } from '../consoleApi';
 import type { CustomConfig } from '../consoleClient';
 import type { ServerStatus } from '../consoleClient';
-import { ACCENTS } from '../theme';
+import { ACCENTS, STYLES } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
 import { connectionText } from './ConnectionBadge';
@@ -675,6 +675,22 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
                   );
                 })}
               </div>
+            </div>
+            <FormMessage message={themeMessage} />
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card__heading"><span className="tile__chip"><Sparkles size={20} /></span><div><h3>风格</h3><p>所有屏幕共用，可与主题、强调色任意组合。更换的是卡片材质、圆角、阴影与背景氛围，设备状态色和告警色仍按含义保持不变。</p></div></div>
+            <div className="settings-styles" role="radiogroup" aria-label="界面风格">
+              {STYLES.map(({ value, label, hint }) => {
+                const current = (settings.style ?? 'ios17') === value;
+                return (
+                  <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={() => { if (!current) void save({ style: value }, setThemeMessage, `界面风格已切换为${label}`); }}>
+                    <span className={`settings-style__preview settings-style__preview--${value}`} aria-hidden="true"><i /><i /><i /></span>
+                    <span className="settings-style__text"><strong>{label}</strong><small>{hint}</small></span>
+                  </button>
+                );
+              })}
             </div>
             <FormMessage message={themeMessage} />
           </section>
