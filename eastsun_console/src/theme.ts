@@ -109,6 +109,9 @@ export const STYLES = [
   { value: 'ink', label: '素墨黑白', hint: '灰阶纸面' },
   { value: 'helm', label: '夜航仪表仓', hint: '深色仪表' },
   { value: 'courtyard', label: '庭院新中式', hint: '纸色木纹' },
+  { value: 'porcelain', label: '青瓷', hint: '青白釉面' },
+  { value: 'neon', label: '霓虹夜', hint: '洋红青蓝发光' },
+  { value: 'sand', label: '暖沙', hint: '哑光暖米色' },
 ] as const;
 export type Style = (typeof STYLES)[number]['value'];
 

@@ -1171,7 +1171,7 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
           <span className="scene-style-row__label">按钮风格</span>
           <div className="scene-style-picker" role="radiogroup" aria-label="情景按钮风格">
             {SCENE_STYLES.map(({ value, label }) => {
-              const current = (custom.sceneStyle ?? 'block') === value;
+              const current = (custom.sceneStyle ?? 'sharp') === value;
               return (
                 <button key={value} type="button" role="radio" aria-checked={current} className="scene-style" onClick={() => { if (!current) void mutate({ ...custom, sceneStyle: value }, `按钮风格已改为${label}`); }}>
                   <span className={`scene-style__swatch scene-style__swatch--${value}`} aria-hidden="true" />

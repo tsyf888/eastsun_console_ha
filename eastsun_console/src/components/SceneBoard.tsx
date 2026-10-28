@@ -8,7 +8,7 @@ type SceneButton = CustomConfig['scenes'][number];
 interface SceneBoardProps {
   title: string;
   scenes: SceneButton[];
-  /** 按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省方块。 */
+  /** 按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省直角。 */
   style?: SceneStyle;
   /** 已发现的实体，用于按钮未命名时回退显示实体名称。 */
   entities: Pick<CatalogueEntity, 'id' | 'name'>[];
@@ -18,7 +18,7 @@ interface SceneBoardProps {
 }
 
 /** 情景模式板块：一排可换行的大按钮，点击触发设置中指向的实体。没有按钮时板块由调用方隐藏。 */
-export function SceneBoard({ title, scenes, style = 'block', entities, pendingId, onRun }: SceneBoardProps) {
+export function SceneBoard({ title, scenes, style = 'sharp', entities, pendingId, onRun }: SceneBoardProps) {
   return (
     <section className="scene-board">
       <div className="section-heading">

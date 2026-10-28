@@ -57,11 +57,14 @@ export interface Catalogue {
   entities: CatalogueEntity[];
 }
 
-/** 情景模式按钮外观风格；缺省（方块）为设置未指定时的默认值。 */
+/** 情景模式按钮外观风格；第一个（直角）为默认值。 */
 export const SCENE_STYLES = [
+  { value: 'sharp', label: '直角' },
   { value: 'block', label: '方块' },
   { value: 'capsule', label: '胶囊' },
   { value: 'soft', label: '柔和' },
+  { value: 'glass', label: '玻璃' },
+  { value: 'gradient', label: '渐变' },
   { value: 'outline', label: '线框' },
   { value: 'solid', label: '实心' },
   { value: 'circle', label: '圆章' },
@@ -76,7 +79,7 @@ export interface CustomConfig {
   assignments: Record<string, string>;
   /** 情景按钮；scope 为 'home'（我的家庭页）或某个房间 id。name 为空时前端回退显示目标实体名称。 */
   scenes: { id: string; name: string; entity: string; scope: string; icon: string }[];
-  /** 情景按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省方块。 */
+  /** 情景按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省直角。 */
   sceneStyle?: SceneStyle;
   /** 实体 id → 显示覆盖（改名 / 自定义图标）；name 或 icon 为空字符串表示跟随原名 / 自动匹配。 */
   entities: Record<string, { name: string; icon: string }>;

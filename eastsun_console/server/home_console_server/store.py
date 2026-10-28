@@ -26,7 +26,7 @@ DEFAULT_PIN = "1234"
 THEMES = ("dark", "light", "auto")
 ACCENTS = ("amber", "coral", "rose", "violet", "sky", "teal", "green",
            "blue", "indigo", "purple", "pink", "orange", "yellow", "mint", "cyan")  # 强调色，第一个为默认
-STYLES = ("ios17", "glass26", "jelly", "ink", "helm", "courtyard")  # UI 风格，第一个（iOS17 经典）为默认
+STYLES = ("ios17", "glass26", "jelly", "ink", "helm", "courtyard", "porcelain", "neon", "sand")  # UI 风格，第一个（iOS17 经典）为默认
 DEFAULT_HOME_TITLE = "我的家庭"
 HOME_TITLE_MAX = 12
 DEFAULT_HOME_SUBTITLE = ""
@@ -108,8 +108,8 @@ ENTITY_ID_RE = re.compile(r"^(?:[a-z0-9_]{1,64})\.(?:[a-z0-9_]{1,128})$")
 # 图标键：前端图标表中的短横线 kebab 名（如 sofa / bed-double）；空字符串表示用默认图标。
 ICON_KEY_RE = re.compile(r"^$|^[a-z0-9]{1,20}(?:-[a-z0-9]{1,20}){0,3}$")
 SCENE_TARGET_DOMAINS = ("scene", "script", "button", "input_button", "automation")
-# 情景按钮外观风格；第一个（方块）为默认值，未知值按默认处理。
-SCENE_STYLES = ("block", "capsule", "soft", "outline", "solid", "circle")
+# 情景按钮外观风格；第一个（直角）为默认值，未知值按默认处理。
+SCENE_STYLES = ("sharp", "block", "capsule", "soft", "glass", "gradient", "outline", "solid", "circle")
 HOME_SCOPE = "home"
 
 
@@ -387,7 +387,7 @@ def clean_custom(raw: Any, known_rooms: set[str] | None = None, known_entities: 
     if child_owner:
         assignments = {entity_id: room_id for entity_id, room_id in assignments.items() if entity_id not in child_owner}
 
-    # 情景按钮外观：缺省方块，未知值回退方块（旧配置没有该字段）。
+    # 情景按钮外观：缺省直角，未知值回退默认（旧配置没有该字段）。
     scene_style = raw.get("sceneStyle")
     if scene_style not in SCENE_STYLES:
         scene_style = SCENE_STYLES[0]

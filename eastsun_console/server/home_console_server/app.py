@@ -777,12 +777,14 @@ class ConsoleServer:
 
     async def handle_ws(self, request: web.Request) -> web.WebSocketResponse:
         # WS 鉴权：未登录拒绝升级，前端在调 /api/admin/me 时已发现未登录并跳登录页。
-        # Ingress 访客（侧边栏）没有会话也允许连接，身份为非管理员「侧边栏访客」。
+        # Ingress 访客（侧边栏）没有会话也允许连接，但只能查看状态，任何设备控制都会被拒绝。
         session = self._current_session(request)
+        visitor = False
         if not session:
             if not _is_ingress_request(request):
                 return web.Response(status=401, text="需要登录")
             session = dict(INGRESS_VISITOR)
+            visitor = True
         ws = web.WebSocketResponse(heartbeat=30)
         await ws.prepare(request)
         self.clients.add(ws)
@@ -803,19 +805,20 @@ class ConsoleServer:
                     # 页面用来确认连接仍然可用（手机锁屏后旧连接可能已失效却未关闭）。
                     await ws.send_json({"type": "pong"})
                 elif payload.get("type") == "call_service":
-                    task = asyncio.create_task(self._call_service(ws, payload, client_ip(request), username))
+                    task = asyncio.create_task(self._call_service(ws, payload, client_ip(request), username, visitor))
                     self._tasks.add(task)
                     task.add_done_callback(self._tasks.discard)
         finally:
             self.clients.discard(ws)
         return ws
 
-    async def _call_service(self, ws: web.WebSocketResponse, payload: dict[str, Any], ip: str, username: str) -> None:
+    async def _call_service(self, ws: web.WebSocketResponse, payload: dict[str, Any], ip: str, username: str, visitor: bool = False) -> None:
         request_id = payload.get("id")
         entity_id = str(payload.get("entity", ""))
         service = str(payload.get("service", ""))
         data = payload.get("data") or {}
-        error = self._reject_reason(entity_id, service, data)
+        # 未登录（Ingress 侧边栏访客）只读：仅可查看状态，不能控制任何设备。
+        error = "未登录，仅可查看状态" if visitor else self._reject_reason(entity_id, service, data)
         if error is None:
             try:
                 await self.upstream.call_service(entity_id.split(".")[0], service, entity_id, data)

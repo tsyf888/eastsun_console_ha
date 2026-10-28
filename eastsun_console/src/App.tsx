@@ -59,9 +59,9 @@ function OccupancyBadge({ occupied }: { occupied: boolean }) {
 
 function App() {
   // 账户系统：未登录显示登录页，已登录显示主界面；firstRun=true 时管理员需到设置改账号密码。
-  // HA 侧边栏 Ingress 访客（me.ingress=true 且无会话）免登录，以非管理员身份直接进主界面。
-  const [auth, setAuth] = useState<{ loading: boolean; authenticated: boolean; ingress: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean }>(
-    { loading: true, authenticated: false, ingress: false, firstRun: false },
+  // HA 侧边栏 Ingress 访客（me.ingress=true 且无会话）免登录进入主界面，但只能查看状态（visitor=true）。
+  const [auth, setAuth] = useState<{ loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean }>(
+    { loading: true, authenticated: false, ingress: false, visitor: false, firstRun: false },
   );
   // 首跑管理员登录后直接进入「管理员修改」；用户取消后才进入主界面，仍可从 设置→安全 再次调起。
   const [setupDismissed, setSetupDismissed] = useState(false);
@@ -72,21 +72,21 @@ function App() {
         if (!active) return;
         if (!me.authenticated && me.ingress) {
           // 侧边栏访客：HA 已做过登录认证，直接进入主界面（非管理员）。
-          setAuth({ loading: false, authenticated: true, ingress: true, user: { username: '侧边栏访客', isAdmin: false }, firstRun: false });
+          setAuth({ loading: false, authenticated: true, ingress: true, visitor: true, user: { username: '侧边栏访客', isAdmin: false }, firstRun: false });
           return;
         }
-        setAuth({ loading: false, authenticated: me.authenticated, ingress: Boolean(me.ingress), user: me.user, firstRun: Boolean(me.firstRun) });
+        setAuth({ loading: false, authenticated: me.authenticated, ingress: Boolean(me.ingress), visitor: false, user: me.user, firstRun: Boolean(me.firstRun) });
       })
-      .catch(() => { if (active) setAuth({ loading: false, authenticated: false, ingress: false, firstRun: false }); });
+      .catch(() => { if (active) setAuth({ loading: false, authenticated: false, ingress: false, visitor: false, firstRun: false }); });
     return () => { active = false; };
   }, []);
   function refreshAuth() {
     getMe().then((me) => {
       if (!me.authenticated && me.ingress) {
-        setAuth({ loading: false, authenticated: true, ingress: true, user: { username: '侧边栏访客', isAdmin: false }, firstRun: false });
+        setAuth({ loading: false, authenticated: true, ingress: true, visitor: true, user: { username: '侧边栏访客', isAdmin: false }, firstRun: false });
         return;
       }
-      setAuth({ loading: false, authenticated: me.authenticated, ingress: Boolean(me.ingress), user: me.user, firstRun: Boolean(me.firstRun) });
+      setAuth({ loading: false, authenticated: me.authenticated, ingress: Boolean(me.ingress), visitor: false, user: me.user, firstRun: Boolean(me.firstRun) });
     }).catch(() => undefined);
   }
   /** 退出登录：先调后端清除会话与 Cookie，再刷新本地鉴权状态（Ingress 下回到访客态，否则回登录页）。 */
@@ -102,7 +102,7 @@ function App() {
 }
 
 interface ConsoleProps {
-  authenticated: { loading: boolean; authenticated: boolean; ingress: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean };
+  authenticated: { loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean };
   onLogout: () => void;
   onAuthenticated: () => void;
   onOpenSetup: () => void;
@@ -123,7 +123,13 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const [roomOrderOpen, setRoomOrderOpen] = useState(false);
   // 房间按共用布局排序；导航、默认房间和“正在运行”的同类排序都使用这个顺序。
   const home = useMemo(() => ({ ...sourceHome, rooms: orderedRooms(sourceHome.rooms, layout.rooms) }), [sourceHome, layout.rooms]);
+  // 身份提示：未登录只能查看状态；子账号可以控制但没有管理员权限（进入或切换账户时提示一次）。
   const [appNotice, setAppNotice] = useState<string | null>(null);
+  const identity = authenticated.visitor ? 'visitor' : authenticated.user?.isAdmin ? 'admin' : 'member';
+  useEffect(() => {
+    if (identity === 'visitor') setAppNotice('未登录，仅可查看状态，登录后才能控制设备');
+    else if (identity === 'member') setAppNotice('该账户不是管理员账户，仅可控制与查看');
+  }, [identity]);
   // 最近一次与后端一致的布局；为 null 表示还没收到后端布局，此前不上传本地缓存，避免旧缓存覆盖共用布局。
   const syncedLayoutRef = useRef<string | null>(null);
   const drag = useTileDrag(reorder);
@@ -245,7 +251,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   }, []);
 
   // 只读模式下设备按钮仍可点，但操作被替换为空操作；编辑布局入口一并隐藏。后端同样会拒绝控制与布局修改。
-  const canControl = server.status?.controlEnabled ?? true;
+  // 未登录（含 HA 侧边栏访客）只读：仅可查看状态，所有控制入口都替换为空操作；后端同样会拒绝。
+  const canControl = (server.status?.controlEnabled ?? true) && !authenticated.visitor;
   // 情景模式按钮（设置 → 房间中自定义）：点击触发目标一键执行实体（scene/script 用 turn_on，button/input_button 用 press，automation 用 trigger）；执行期间按钮转圈。
   const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
   const runScene = (scene: { id: string; name: string; entity: string }) => {
