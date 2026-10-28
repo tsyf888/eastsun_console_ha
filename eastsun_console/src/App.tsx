@@ -589,12 +589,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                     <SingleRowGrid className="tile-grid--quick" spans={favoriteSpans}>{favoriteDevices.map(favoriteCard)}</SingleRowGrid>
                   </div>
                 </div>
-                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} />}
+                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
               </>
             ) : (
               <>
                 {homeCameras.length > 0 && <CameraBoard title="摄像头" cameras={homeCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
-                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} />}
+                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
                 <div className="section-heading">
                   <h2>常用设备</h2>
                   <div className="section-heading__actions">
@@ -626,7 +626,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         {page === 'room' && (
           <>
             {roomCameras.length > 0 && <CameraBoard title="摄像头" cameras={roomCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
-            {roomScenes.length > 0 && <SceneBoard title="情景模式" scenes={roomScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} />}
+            {roomScenes.length > 0 && <SceneBoard title="情景模式" scenes={roomScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
             <div className="section-heading">
               <h2>设备与状态</h2>
               <div className="section-heading__actions">

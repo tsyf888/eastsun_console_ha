@@ -108,6 +108,8 @@ ENTITY_ID_RE = re.compile(r"^(?:[a-z0-9_]{1,64})\.(?:[a-z0-9_]{1,128})$")
 # 图标键：前端图标表中的短横线 kebab 名（如 sofa / bed-double）；空字符串表示用默认图标。
 ICON_KEY_RE = re.compile(r"^$|^[a-z0-9]{1,20}(?:-[a-z0-9]{1,20}){0,3}$")
 SCENE_TARGET_DOMAINS = ("scene", "script", "button", "input_button", "automation")
+# 情景按钮外观风格；第一个（方块）为默认值，未知值按默认处理。
+SCENE_STYLES = ("block", "capsule", "soft", "outline", "solid", "circle")
 HOME_SCOPE = "home"
 
 
@@ -385,9 +387,14 @@ def clean_custom(raw: Any, known_rooms: set[str] | None = None, known_entities: 
     if child_owner:
         assignments = {entity_id: room_id for entity_id, room_id in assignments.items() if entity_id not in child_owner}
 
+    # 情景按钮外观：缺省方块，未知值回退方块（旧配置没有该字段）。
+    scene_style = raw.get("sceneStyle")
+    if scene_style not in SCENE_STYLES:
+        scene_style = SCENE_STYLES[0]
+
     return {"rooms": rooms, "assignments": assignments, "scenes": scenes, "entities": entities,
             "cameras": cameras, "metricSources": metric_sources, "occupancy": occupancy, "battery": battery,
-            "children": children}
+            "children": children, "sceneStyle": scene_style}
 
 
 def _battery_names(raw: Any) -> dict[str, str]:

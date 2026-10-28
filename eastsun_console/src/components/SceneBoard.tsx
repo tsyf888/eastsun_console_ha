@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import type { CatalogueEntity, CustomConfig } from '../consoleClient';
+import type { CatalogueEntity, CustomConfig, SceneStyle } from '../consoleClient';
 import { findSceneIcon } from '../icons';
 import { sceneDisplayName } from '../haAdapter';
 
@@ -8,6 +8,8 @@ type SceneButton = CustomConfig['scenes'][number];
 interface SceneBoardProps {
   title: string;
   scenes: SceneButton[];
+  /** 按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省方块。 */
+  style?: SceneStyle;
   /** 已发现的实体，用于按钮未命名时回退显示实体名称。 */
   entities: Pick<CatalogueEntity, 'id' | 'name'>[];
   /** 正在执行的情景 id，对应按钮转圈并禁用，防止重复点击。 */
@@ -16,13 +18,13 @@ interface SceneBoardProps {
 }
 
 /** 情景模式板块：一排可换行的大按钮，点击触发设置中指向的实体。没有按钮时板块由调用方隐藏。 */
-export function SceneBoard({ title, scenes, entities, pendingId, onRun }: SceneBoardProps) {
+export function SceneBoard({ title, scenes, style = 'block', entities, pendingId, onRun }: SceneBoardProps) {
   return (
     <section className="scene-board">
       <div className="section-heading">
         <h2>{title}</h2>
       </div>
-      <div className="scene-board__buttons">
+      <div className="scene-board__buttons" data-scene-style={style}>
         {scenes.map((scene) => {
           const pending = pendingId === scene.id;
           const Icon = pending ? Loader2 : findSceneIcon(scene.icon);

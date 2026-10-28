@@ -6,7 +6,7 @@ import { ApiError, changePassword, createAccount, deleteAccount, getAccounts, ge
 import type { AccountInfo, AdminSettings, AuditEntry, DiscoveredEntities, PersonConfig } from '../consoleApi';
 import type { CustomConfig } from '../consoleClient';
 import type { ServerStatus } from '../consoleClient';
-import { ACCENTS, STYLES } from '../theme';
+import { ACCENTS, STYLES, applyStyle } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
 import { connectionText } from './ConnectionBadge';
@@ -685,7 +685,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
               {STYLES.map(({ value, label, hint }) => {
                 const current = (settings.style ?? 'ios17') === value;
                 return (
-                  <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={() => { if (!current) void save({ style: value }, setThemeMessage, `界面风格已切换为${label}`); }}>
+                  <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={async () => { if (current) return; if (await save({ style: value }, setThemeMessage, `界面风格已切换为${label}`)) applyStyle(value); }}>
                     <span className={`settings-style__preview settings-style__preview--${value}`} aria-hidden="true"><i /><i /><i /></span>
                     <span className="settings-style__text"><strong>{label}</strong><small>{hint}</small></span>
                   </button>

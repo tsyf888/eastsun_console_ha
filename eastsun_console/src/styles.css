@@ -169,7 +169,9 @@
   --glass: rgba(255, 255, 255, .74);
   --glass-border: rgba(255, 255, 255, .9);
 }
-:root[data-style="jelly"] .app-shell {
+/* 浅色主题下 .app-shell 有更高层叠来源，这里用同样带主题的选择器保证风格背景能覆盖 */
+:root[data-style="jelly"] .app-shell,
+:root[data-theme="light"][data-style="jelly"] .app-shell {
   background:
     radial-gradient(1100px 620px at 6% -12%, rgba(var(--accent-rgb), .42), transparent 58%),
     radial-gradient(900px 560px at 104% -8%, rgba(72, 170, 255, .36), transparent 60%),
@@ -242,7 +244,8 @@
   --overlay: rgba(38, 72, 96, .06);
   --overlay-2: rgba(38, 72, 96, .12);
 }
-:root[data-style="helm"] .app-shell {
+:root[data-style="helm"] .app-shell,
+:root[data-theme="light"][data-style="helm"] .app-shell {
   background:
     linear-gradient(rgba(112, 214, 255, .05) 1px, transparent 1px) 0 0 / 100% 28px,
     linear-gradient(90deg, rgba(112, 214, 255, .05) 1px, transparent 1px) 0 0 / 28px 100%,
@@ -277,7 +280,8 @@
   --hairline: rgba(122, 88, 52, .18);
   --hairline-strong: rgba(122, 88, 52, .32);
 }
-:root[data-style="courtyard"] .app-shell {
+:root[data-style="courtyard"] .app-shell,
+:root[data-theme="light"][data-style="courtyard"] .app-shell {
   background:
     radial-gradient(920px 560px at 12% -10%, rgba(196, 150, 96, .18), transparent 60%),
     radial-gradient(880px 540px at 102% 108%, rgba(120, 150, 110, .14), transparent 62%),
@@ -1550,7 +1554,7 @@ html, body { overscroll-behavior-y: none; }
 .scene-button {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px;
   min-width: calc(4em + 64px); padding: 0 18px;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--hairline-strong)); border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--hairline-strong)); border-radius: var(--radius-sm);
   background: var(--surface-on); color: var(--text); font-size: 14.5px; font-weight: 600; cursor: pointer;
   box-shadow: 0 8px 18px -12px rgba(var(--accent-rgb), .65);
   transition: transform .15s var(--ease), box-shadow .2s, background-color .2s, border-color .2s, opacity .2s;
@@ -1560,6 +1564,49 @@ html, body { overscroll-behavior-y: none; }
 .scene-button:active { transform: translateY(0) scale(.97); }
 .scene-button svg { color: var(--accent); }
 .scene-button:disabled { opacity: .6; cursor: default; transform: none; }
+
+/* 情景按钮风格（设置 → 房间 → 情景模式按钮）；默认方块，其余为外观变体 */
+.scene-board__buttons[data-scene-style="capsule"] .scene-button { border-radius: 999px; padding: 0 20px; }
+.scene-board__buttons[data-scene-style="soft"] .scene-button {
+  border-color: transparent; border-radius: calc(var(--radius) - 2px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 20%, var(--surface-on)), var(--surface-on));
+  box-shadow: 0 12px 26px -18px rgba(var(--accent-rgb), .8);
+}
+.scene-board__buttons[data-scene-style="outline"] .scene-button {
+  border-color: var(--hairline-strong); background: transparent; color: var(--text-2); box-shadow: none;
+}
+.scene-board__buttons[data-scene-style="outline"] .scene-button:hover { border-color: var(--accent); background: var(--overlay); color: var(--text); }
+.scene-board__buttons[data-scene-style="solid"] .scene-button {
+  border-color: transparent; background: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 10px 22px -14px rgba(var(--accent-rgb), .9);
+}
+.scene-board__buttons[data-scene-style="solid"] .scene-button svg { color: currentColor; }
+.scene-board__buttons[data-scene-style="circle"] .scene-button {
+  flex: 0 0 auto; flex-direction: column; gap: 5px;
+  width: 88px; min-width: 88px; min-height: 88px; padding: 10px 6px; border-radius: 50%;
+}
+.scene-board__buttons[data-scene-style="circle"] .scene-button span {
+  max-width: 70px; overflow: hidden; text-overflow: ellipsis; font-size: calc(12px * var(--scene-font-scale, 1));
+}
+
+/* 设置页的情景按钮风格选择器 */
+.scene-style-row { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+.scene-style-row__label { color: var(--text-3); font-size: 12px; }
+.scene-style-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.scene-style {
+  display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; min-height: 34px;
+  border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--bg); color: var(--text-2);
+  font-size: 12.5px; cursor: pointer; transition: border-color .18s, background-color .18s, color .18s;
+}
+.scene-style:hover { border-color: var(--hairline-strong); background: var(--surface-2); color: var(--text); }
+.scene-style[aria-checked="true"] { border-color: var(--accent); background: var(--overlay); color: var(--text); box-shadow: inset 0 0 0 1px var(--accent); }
+.scene-style:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scene-style__swatch { flex: none; width: 22px; height: 15px; border: 1px solid var(--accent); border-radius: 3px; background: var(--surface-on); }
+.scene-style__swatch--capsule { border-radius: 9px; }
+.scene-style__swatch--soft { border-color: transparent; border-radius: 6px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 45%, var(--surface-on)), var(--surface-on)); }
+.scene-style__swatch--outline { background: transparent; border-color: var(--text-3); }
+.scene-style__swatch--solid { background: var(--accent); border-color: transparent; }
+.scene-style__swatch--circle { width: 16px; height: 16px; border-radius: 50%; }
 
 /* ---------- 标签筛选 chips（设备筛选与设备选择器共用） ---------- */
 .label-chips { display: flex; flex-wrap: wrap; gap: 7px; }
