@@ -1,21 +1,55 @@
-import { ArrowUpDown, House, Music, Settings } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { ArrowUpDown, House, Music, Settings, Layers, Lightbulb, Power, AirVent, Blinds, Fan, Wind, Radio, Camera, ShieldAlert, Bot } from 'lucide-react';
+import { useEffect, useMemo, useRef } from 'react';
 import { apiPath } from '../consoleApi';
 import type { PersonStatus } from '../consoleClient';
 import { roomIcon } from '../appearance';
 import { getRoomActivity } from '../selectors';
 import { formatTime } from '../time';
-import type { HomeState } from '../types';
+import type { Device, HomeState } from '../types';
+
+/** 设备类型分组：把 climate + heating 合并为温控，其余按 kind 单独分组。 */
+export type CategoryKind = 'light' | 'switch' | 'climate' | 'fan' | 'cover' | 'media' | 'camera' | 'safety' | 'sensor' | 'vacuum';
+
+/** 把 Device 的原始 kind 映射到导航栏里的类别；不识别的返回 null（如纯 sensor/battery 不进导航）。 */
+export function categoryOf(device: Device): CategoryKind | null {
+  switch (device.kind) {
+    case 'light': return 'light';
+    case 'switch': return 'switch';
+    case 'climate': case 'heating': return 'climate';
+    case 'fan': return 'fan';
+    case 'cover': return 'cover';
+    case 'media': return 'media';
+    case 'safety': return 'safety';
+    case 'sensor': return 'sensor';
+    case 'vacuum': return 'vacuum';
+    default: return null;
+  }
+}
+
+export const CATEGORY_META: Record<CategoryKind, { label: string; short: string; Icon: typeof Lightbulb }> = {
+  light:    { label: '灯',         short: '灯', Icon: Lightbulb },
+  switch:   { label: '开关',       short: '开', Icon: Power },
+  climate:  { label: '空调',  short: '温', Icon: AirVent },
+  fan:      { label: '风扇',       short: '风', Icon: Fan },
+  cover:    { label: '窗帘',       short: '帘', Icon: Blinds },
+  media:    { label: '影音',       short: '音', Icon: Radio },
+  camera:   { label: '摄像头',     short: '像', Icon: Camera },
+  safety:   { label: '安防',       short: '防', Icon: ShieldAlert },
+  sensor:   { label: '传感器',     short: '感', Icon: Wind },
+  vacuum:   { label: '扫地机',     short: '扫', Icon: Bot },
+};
 
 interface SideNavProps {
   home: HomeState;
   /** 首页入口名称，与首页标题一致。 */
   homeTitle: string;
-  /** 当前页面：全屋、设置、音乐或某个房间 id。 */
-  current: 'home' | 'settings' | 'music' | { roomId: string };
+  /** 当前页面：全屋、设置、音乐、某个房间 id 或某个设备类别。 */
+  current: 'home' | 'settings' | 'music' | { roomId: string } | { category: CategoryKind };
   now: Date;
   onHome: () => void;
   onOpenRoom: (id: string) => void;
+  /** 打开设备类别页；不传则不显示类别分组。 */
+  onOpenCategory?: (kind: CategoryKind) => void;
   onSettings: () => void;
   /** 打开房间排序；只读模式下不传，入口隐藏。 */
   onEditRooms?: () => void;
@@ -30,14 +64,25 @@ interface SideNavProps {
 }
 
 /** 左侧导航：全屋在前，房间直接展开；手机上变为可横滑的底部标签栏。 */
-export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onSettings, onEditRooms, onOpenMusic, people, occupancy, brandTitle }: SideNavProps) {
+export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onOpenCategory, onSettings, onEditRooms, onOpenMusic, people, occupancy, brandTitle }: SideNavProps) {
   const navRef = useRef<HTMLElement>(null);
-  const currentRoomId = typeof current === 'object' ? current.roomId : null;
-  const currentKey = currentRoomId ?? current;
+  const currentRoomId = typeof current === 'object' && 'roomId' in current ? current.roomId : null;
+  const currentCategory = typeof current === 'object' && 'category' in current ? current.category : null;
+  const currentKey = currentRoomId ?? currentCategory ?? (typeof current === 'string' ? current : null);
   const groups = [
     { label: '房间', rooms: home.rooms.filter((room) => room.category === 'main') },
     { label: '其他空间', rooms: home.rooms.filter((room) => room.category === 'other') },
   ].filter((group) => group.rooms.length > 0);
+  const categories = useMemo(() => {
+    const counts = new Map<CategoryKind, number>();
+    for (const device of home.devices) {
+      const kind = categoryOf(device);
+      if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+    }
+    return (Object.keys(CATEGORY_META) as CategoryKind[])
+      .map((kind) => ({ kind, count: counts.get(kind) ?? 0 }))
+      .filter((entry) => entry.count > 0);
+  }, [home.devices]);
 
   useEffect(() => {
     navRef.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -68,6 +113,19 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onS
             })}
           </div>
         ))}
+        {categories.length > 0 && (
+          <div className="side-nav__group" role="group" aria-label="类别">
+            <span className="side-nav__label" aria-hidden="true"><Layers size={12} />类别</span>
+            {categories.map(({ kind, count }) => {
+              const { Icon, label } = CATEGORY_META[kind];
+              return (
+                <button key={kind} type="button" title={`${label}（${count}）`} aria-label={`${label}，共 ${count} 个`} aria-current={currentCategory === kind ? 'page' : undefined} onClick={() => onOpenCategory?.(kind)}>
+                  <Icon size={18} /><span>{label}</span><em className="side-nav__count">{count}</em>
+                </button>
+              );
+            })}
+          </div>
+        )}
         {onEditRooms && home.rooms.length > 1 && <button type="button" className="side-nav__edit" onClick={onEditRooms} title="调整房间顺序" aria-label="调整房间顺序"><ArrowUpDown size={18} /><span>房间排序</span></button>}
         {onOpenMusic && <button type="button" title="音乐" aria-current={current === 'music' ? 'page' : undefined} onClick={onOpenMusic}><Music size={20} /><span>音乐</span></button>}
       </div>

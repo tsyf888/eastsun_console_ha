@@ -648,6 +648,7 @@ strong { font-weight: 600; }
 .side-nav__dot { width: 7px; height: 7px; flex: none; margin-left: auto; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .side-nav__dot--alert { background: var(--alert); box-shadow: 0 0 8px var(--alert); }
 .side-nav__dot--occupied { background: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, .75); }
+.side-nav__count { display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 5px; border-radius: 999px; margin-left: auto; color: var(--text-3); font-size: 10px; font-style: normal; font-variant-numeric: tabular-nums; background: var(--surface-2); border: 1px solid var(--hairline); }
 .side-nav__items .side-nav__edit { margin-top: 14px; min-height: 40px; color: var(--text-3); font-size: 13px; }
 .side-nav__footer { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 0 8px; }
 .side-nav__footer-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
@@ -2024,6 +2025,16 @@ html, body { overscroll-behavior-y: none; }
   .scene-manage-row { flex-wrap: wrap; row-gap: 6px; }
   .scene-manage-row code { flex: 1 1 100%; order: 3; padding-left: 25px; }
   .metric-source-row__current em { margin-left: 8px; }
+  /* 电量传感器：改 2 行布局，名字在上、按钮在右下方 */
+  .battery-manage-row { flex-wrap: wrap; row-gap: 8px; }
+  .battery-manage-row__id { flex: 1 1 100%; order: 4; padding-left: 40px; }
+  .battery-manage-row__name { flex: 1 1 100%; }
+  .battery-manage-row .small-button { order: 5; flex: none; }
+  .battery-manage-row .icon-button { order: 6; margin-left: auto; }
+  /* 情景按钮风格选择器在小屏上更紧凑 */
+  .scene-style-picker { gap: 6px; }
+  .scene-style { padding: 5px 9px 5px 6px; font-size: 12px; }
+  .scene-style__swatch { width: 18px; height: 12px; }
 }
 
 /* ---------- 安装为应用（PWA）：iOS 状态栏透明、内容延伸到顶部与刘海两侧 ---------- */

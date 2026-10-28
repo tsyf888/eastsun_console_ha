@@ -20,7 +20,7 @@ import { TimersDialog } from './components/TimersDialog';
 import type { TimerItem } from './components/TimersDialog';
 import { SceneBoard } from './components/SceneBoard';
 import { SettingsPage } from './components/SettingsPage';
-import { SideNav } from './components/SideNav';
+import { SideNav, categoryOf, CATEGORY_META, type CategoryKind } from './components/SideNav';
 import { WeatherCompact, WeatherDialog, WeatherHero } from './components/Weather';
 import { getMe, logout, putLayout } from './consoleApi';
 import { allowedSizesForDevice, favoriteIds, favoriteSizeKey, fromServerLayout, layoutKey, orderedDevices, orderedRooms, readLayout, saveLayout, tileSizeForDevice, toServerLayout, toggleFavorite } from './layout';
@@ -30,7 +30,7 @@ import { formatDateParts, formatTime, homeGreeting, useNow } from './time';
 import { isIngress, kioskOn, restoreKiosk, setKiosk } from './kiosk';
 import type { Device, DeviceActions, LayoutState, Room, TileSize } from './types';
 import { useConsole } from './useConsole';
-import { readOnlyActions, useHome } from './useHome';
+import { useHome } from './useHome';
 import { useTileDrag } from './useTileDrag';
 import { useWeather } from './useWeather';
 import { useAlmanac } from './useAlmanac';
@@ -38,7 +38,7 @@ import { AlmanacDialog } from './components/AlmanacDialog';
 import { weatherIcon } from './weather';
 import { applyAccent, applyStyle, applyTheme, resolveTheme } from './theme';
 
-type Page = 'home' | 'room' | 'settings' | 'music';
+type Page = 'home' | 'room' | 'settings' | 'music' | 'category';
 
 /** 拖动与键盘排序的作用域：常用设备，或某个房间 id。 */
 const favoritesScope = 'favorites';
@@ -117,6 +117,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   );
   const [page, setPage] = useState<Page>('home');
   const [selectedRoomId, setSelectedRoomId] = useState('living');
+  const [selectedCategoryKind, setSelectedCategoryKind] = useState<CategoryKind>('light');
   const [selectedClimateId, setSelectedClimateId] = useState<string | null>(null);
   const [editingLayout, setEditingLayout] = useState(false);
   const [layout, setLayout] = useState<LayoutState>(readLayout);
@@ -250,9 +251,33 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     setPage('home');
   }, []);
 
-  // 只读模式下设备按钮仍可点，但操作被替换为空操作；编辑布局入口一并隐藏。后端同样会拒绝控制与布局修改。
+  // 只读模式下设备按钮仍可点，但操作被替换为提示 + 空操作；编辑布局入口一并隐藏。后端同样会拒绝控制与布局修改。
   // 未登录（含 HA 侧边栏访客）只读：仅可查看状态，所有控制入口都替换为空操作；后端同样会拒绝。
   const canControl = (server.status?.controlEnabled ?? true) && !authenticated.visitor;
+
+  /** 只读模式下的设备操作：每次被调用都弹一次"只读模式"提示，避免用户点一圈啥反应都没有。
+   *  1.5s 内只弹一次，防止按住按钮时疯狂刷屏。 */
+  const readonlyNoticeRef = useRef(0);
+  const makeBlocked = useCallback(() => () => {
+    const now = Date.now();
+    if (now - readonlyNoticeRef.current > 1500) {
+      readonlyNoticeRef.current = now;
+      setAppNotice('只读模式，设备操作不会执行');
+    }
+  }, []);
+  const readonlyActions: DeviceActions = useMemo(() => {
+    const fn = makeBlocked();
+    return {
+      toggle: fn, turnOff: fn, adjust: fn, changeLight: fn,
+      changeClimateMode: fn, changeFanMode: fn, setSwingMode: fn,
+      mediaPower: fn, mediaPlayPause: fn, mediaVolume: fn,
+      changeFanSpeed: fn, changeFanPreset: fn, setFanOscillate: fn,
+      coverOpen: fn, coverClose: fn, coverStop: fn, coverPosition: fn,
+      vacuumStart: fn, vacuumPause: fn, vacuumReturn: fn,
+      vacuumLocate: fn, vacuumFanSpeed: fn, setTimer: fn, clearTimer: fn,
+    };
+  }, [makeBlocked]);
+  const baseActions = canControl ? deviceActions : readonlyActions;
   // 情景模式按钮（设置 → 房间中自定义）：点击触发目标一键执行实体（scene/script 用 turn_on，button/input_button 用 press，automation 用 trigger）；执行期间按钮转圈。
   const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
   const runScene = (scene: { id: string; name: string; entity: string }) => {
@@ -263,7 +288,6 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
       .catch((error: Error) => setAppNotice(`“${label}”执行失败：${error.message}`))
       .finally(() => setPendingSceneId((current) => (current === scene.id ? null : current)));
   };
-  const baseActions = canControl ? deviceActions : readOnlyActions;
   // 季节规则（设置 → 自动化）：夏季不打开地暖；打开空调时直接用当季的模式，免得先开成相反模式再被 HA 自动化改回来。
   const season = server.status?.season ?? null;
   const actions: DeviceActions = canControl && season ? {
@@ -402,6 +426,15 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     setPage('music');
   }
 
+  /** 设备类别页：按设备类型查看所有房间的同类设备，卡片右上角显示房间名。 */
+  function openCategory(kind: CategoryKind) {
+    setEnterDirection(0);
+    leaveLayoutEditing();
+    setSelectedClimateId(null);
+    setSelectedCategoryKind(kind);
+    setPage('category');
+  }
+
   function changeSize(id: string, size: TileSize) {
     setLayout((previous) => ({ ...previous, sizes: { ...previous.sizes, [id]: size } }));
   }
@@ -515,7 +548,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const currentNavIndex = page === 'home' ? 0 : page === 'room' ? navTargets.findIndex((target) => target.key === selectedRoom.id) : -1;
 
   // 页面切换动画：页头文字与内容按方向进入。
-  const pageKey = page === 'room' ? `room-${selectedRoom.id}` : page;
+  const pageKey = page === 'room' ? `room-${selectedRoom.id}` : page === 'category' ? `category-${selectedCategoryKind}` : page;
   const enterClass = `page-enter page-enter--${enterDirection === 1 ? 'up' : enterDirection === -1 ? 'down' : 'fade'}`;
 
   const editButton = (
@@ -537,7 +570,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
 
   return (
     <div className={compactActive ? 'app-shell app-shell--compact' : 'app-shell'}>
-      <SideNav home={home} homeTitle={homeTitle} current={page === 'room' ? { roomId: selectedRoom.id } : page} now={now} onHome={openHome} onOpenRoom={openRoom} onSettings={requestSettings} onEditRooms={canControl ? () => setRoomOrderOpen(true) : undefined} onOpenMusic={musicUrl ? openMusic : undefined} people={server.status?.people} occupancy={occupancy} brandTitle={server.status?.brandTitle} />
+      <SideNav home={home} homeTitle={homeTitle} current={page === 'room' ? { roomId: selectedRoom.id } : page === 'category' ? { category: selectedCategoryKind } : page} now={now} onHome={openHome} onOpenRoom={openRoom} onOpenCategory={openCategory} onSettings={requestSettings} onEditRooms={canControl ? () => setRoomOrderOpen(true) : undefined} onOpenMusic={musicUrl ? openMusic : undefined} people={server.status?.people} occupancy={occupancy} brandTitle={server.status?.brandTitle} />
       <header className={`hero${page === 'home' ? ' hero--home' : ''}${page === 'settings' ? ' hero--settings' : ''}${heroTone ? ` hero--weather weather--${heroTone}` : ''}`}>
         {page === 'room' && <RoomScene key={selectedRoom.id} room={selectedRoom} lit={selectedRoomLitCount > 0} />}
         <div className="hero__top">
@@ -550,12 +583,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
           <div className="hero__main">
             <div className="hero__title">
               <div>
-                <h1>{page === 'room' ? selectedRoom.name : page === 'settings' ? '设置' : page === 'music' ? '音乐' : <span className="datetime"><span className="datetime__time">{formatTime(now)}</span> <span className="datetime__part">{homeClockParts.monthDay}</span> <span className="datetime__part">{homeClockParts.weekday}</span></span>}{page === 'home' && season && <span className={`season-badge season-badge--${season}`} title="季节规则（设置 → 自动化）">{season === 'summer' ? <Sun size={14} /> : <Snowflake size={14} />}{season === 'summer' ? '夏季' : '冬季'}</span>}{occupancyKnown && occupancyScope && <OccupancyBadge occupied={occupancy?.[occupancyScope] === true} />}</h1>
+                <h1>{page === 'room' ? selectedRoom.name : page === 'category' ? CATEGORY_META[selectedCategoryKind].label : page === 'settings' ? '设置' : page === 'music' ? '音乐' : <span className="datetime"><span className="datetime__time">{formatTime(now)}</span> <span className="datetime__part">{homeClockParts.monthDay}</span> <span className="datetime__part">{homeClockParts.weekday}</span></span>}{page === 'home' && season && <span className={`season-badge season-badge--${season}`} title="季节规则（设置 → 自动化）">{season === 'summer' ? <Sun size={14} /> : <Snowflake size={14} />}{season === 'summer' ? '夏季' : '冬季'}</span>}{occupancyKnown && occupancyScope && <OccupancyBadge occupied={occupancy?.[occupancyScope] === true} />}</h1>
                 {page === 'home'
                   ? (homeSubline
                     ? <p><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button></p>
                     : null)
-                  : <p>{page === 'room' ? '房间状态与设备控制' : page === 'settings' ? '管理密码、Home Assistant 连接与控制权限' : '内嵌音乐界面'}</p>}
+                  : <p>{page === 'room' ? '房间状态与设备控制' : page === 'category' ? '按类别查看所有房间的同类设备' : page === 'settings' ? '管理密码、Home Assistant 连接与控制权限' : '内嵌音乐界面'}</p>}
               </div>
             </div>
             {compactActive && page === 'home' ? (
@@ -648,6 +681,29 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         )}
         {page === 'settings' && <SettingsPage status={server.status} user={authenticated.user} ingress={authenticated.ingress} firstRun={authenticated.firstRun} onLogout={onLogout} onAuthenticated={onAuthenticated} onOpenSetup={onOpenSetup} onExpired={settingsExpired} />}
         {page === 'music' && (musicUrl ? <MusicPage url={musicUrl} /> : <div className="empty-room"><p>还没有配置音乐界面，请到 设置 → 音乐 中填写地址。</p></div>)}
+        {page === 'category' && (() => {
+          const filtered = home.devices.filter((device) => categoryOf(device) === selectedCategoryKind);
+          const Icon = CATEGORY_META[selectedCategoryKind].Icon;
+          return (
+            <>
+              {filtered.length === 0 ? (
+                <div className="empty-room">
+                  <Icon size={36} aria-hidden="true" />
+                  <p>当前没有「{CATEGORY_META[selectedCategoryKind].label}」类设备</p>
+                </div>
+              ) : (
+                <section className="home-section">
+                  <div className="section-heading">
+                    <h2><Icon size={18} />{CATEGORY_META[selectedCategoryKind].label} <em>· {filtered.length} 个</em></h2>
+                  </div>
+                  <AdaptiveGrid className="tile-grid tile-grid--room" scale={tileScale}>
+                    {filtered.map((device) => card(device, roomOf(device), { size: '1x1' }))}
+                  </AdaptiveGrid>
+                </section>
+              )}
+            </>
+          );
+        })()}
       </main>
 
       <RoomOrderDialog open={roomOrderOpen && canControl} rooms={home.rooms} onChange={changeRoomOrder} onClose={() => setRoomOrderOpen(false)} />
