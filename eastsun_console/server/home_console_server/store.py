@@ -834,7 +834,7 @@ class Store:
         with os.fdopen(fd, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def recent_audit(self, limit: int = 50, event: str | None = None) -> list[dict[str, Any]]:
+    def recent_audit(self, limit: int = 500, event: str | None = None) -> list[dict[str, Any]]:
         """读取审计日志。event 不为 None 时只返回该类型（如 service_call 只看设备操控记录）。"""
         if not self.audit_path.exists():
             return []

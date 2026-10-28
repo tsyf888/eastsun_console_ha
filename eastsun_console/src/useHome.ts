@@ -50,7 +50,11 @@ export function overlayExpectations(next: HomeState, expectations: Map<string, E
         expectations.delete(device.id);
         return device;
       }
-      return { ...device, ...expectation.expected } as Device;
+      // 窗帘的 opening/closing 是 HA 推送的过程状态：不能用旧期望值盖住，否则“正在打开/关闭”永远显示不出来。
+      const expected = device.kind === 'cover' && (device.state === 'opening' || device.state === 'closing')
+        ? { ...expectation.expected, state: device.state }
+        : expectation.expected;
+      return { ...device, ...expected } as Device;
     }),
   };
 }

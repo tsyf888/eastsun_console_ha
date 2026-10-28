@@ -1321,10 +1321,14 @@ class ConsoleServer:
         return web.json_response(self.store.layout)
 
     async def get_audit(self, request: web.Request) -> web.Response:
-        """读取操作记录。?event=service_call 只返回“操控设备记录”，可按事件类型过滤。"""
+        """读取操作记录。?event=service_call 只返回“操控设备记录”，可按事件类型过滤；最多返回 500 条。"""
         self._require_admin(request)
         event = request.query.get("event") or None
-        return web.json_response(self.store.recent_audit(int(request.query.get("limit", "50")), event=event))
+        try:
+            limit = int(request.query.get("limit", "500"))
+        except ValueError:
+            limit = 500
+        return web.json_response(self.store.recent_audit(max(1, min(limit, 500)), event=event))
 
 
     # ---------- 天气（中国天气网，只读，无需登录） ----------

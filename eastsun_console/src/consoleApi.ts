@@ -180,10 +180,10 @@ export async function uploadPeopleImage(file: File): Promise<{ image: string; ur
  * @param limit 条数
  * @param event 事件类型过滤；传 'service_call' 只看“操控设备记录”。
  */
-export const getAudit = (limit = 30, event?: string) =>
+export const getAudit = (limit = 500, event?: string) =>
   request<AuditEntry[]>(`/api/admin/audit?limit=${limit}${event ? `&event=${encodeURIComponent(event)}` : ''}`);
 /** “操控设备记录”：只看 service_call 事件，按账户名区分谁操作了什么设备。 */
-export const getDeviceAudit = (limit = 50) => getAudit(limit, 'service_call');
+export const getDeviceAudit = (limit = 500) => getAudit(limit, 'service_call');
 export const putLayout = (layout: ServerLayout) => request<ServerLayout>('/api/layout', 'PUT', layout);
 export const getEntities = () => request<DiscoveredEntities>('/api/admin/entities');
 export const putFilter = (filter: Partial<EntityFilter>) => request<DiscoveredEntities>('/api/admin/filter', 'PUT', filter);

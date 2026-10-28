@@ -1,5 +1,5 @@
 import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, ListChecks, LogOut, Minus, Music, Palette, Plus, Power, RotateCcw, Server, ShieldCheck, Sun, Trash2, Upload, UserPlus, Workflow, X } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, KeyboardEvent } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { ApiError, changePassword, createAccount, deleteAccount, getAccounts, getAudit, getCustom, getEntities, getSettings, login as loginApi, request, updateSettings, uploadPeopleImage } from '../consoleApi';
@@ -50,6 +50,31 @@ const auditLabels: Record<string, string> = {
   service_call: '操控设备',
 };
 
+/** HA 服务名 → 中文动作；没有对应译名的服务原样显示，避免翻错。 */
+const serviceLabels: Record<string, string> = {
+  turn_on: '打开',
+  turn_off: '关闭',
+  toggle: '切换',
+  open_cover: '打开',
+  close_cover: '关闭',
+  stop_cover: '停止',
+  set_cover_position: '调整开合度',
+  set_hvac_mode: '切换模式',
+  set_temperature: '设置温度',
+  set_fan_mode: '设置风速',
+  set_swing_mode: '设置摆风',
+  media_play_pause: '播放 / 暂停',
+  volume_set: '设置音量',
+  set_percentage: '设置档位',
+  set_preset_mode: '设置预设模式',
+  oscillate: '切换摇头',
+  start: '开始',
+  pause: '暂停',
+  return_to_base: '回充',
+  locate: '寻找设备',
+  set_fan_speed: '设置档位',
+};
+
 const KIND_OPTIONS = [
   { value: 'light', label: '灯' },
   { value: 'climate', label: '空调/制热' },
@@ -80,10 +105,20 @@ function FormMessage({ message }: { message: Message }) {
   return <p className={`settings-message${message ? ` settings-message--${message.tone}` : ''}`} role="status">{message?.text}</p>;
 }
 
-function auditDetail(entry: AuditEntry): string {
-  if (entry.event === 'service_call') return `${String(entry.entity)} · ${String(entry.service)}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
+/**
+ * 记录详情文案。设备实体换成“房间 · 名称”（找不到时保留实体 id），HA 服务名尽量译成中文，其余原样显示。
+ */
+function auditDetail(entry: AuditEntry, entityName: (id: string) => string): string {
+  if (entry.event === 'service_call') {
+    const action = serviceLabels[String(entry.service)] ?? String(entry.service);
+    const target = entry.entity ? `${entityName(String(entry.entity))} · ` : '';
+    return `${target}${action}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
+  }
   if (entry.event === 'season_rules_synced') return ['created', 'updated', 'deleted'].map((key) => [key, entry[key]] as const).filter(([, ids]) => Array.isArray(ids) && ids.length).map(([key, ids]) => `${{ created: '创建', updated: '更新', deleted: '删除' }[key]} ${(ids as string[]).join('、')}`).join('；');
-  if (entry.event === 'automation_toggled') return `${String(entry.entity)} · ${entry.enabled ? '开启' : '关闭'}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
+  if (entry.event === 'automation_toggled') {
+    const target = entry.entity ? `${entityName(String(entry.entity))} · ` : '';
+    return `${target}${entry.enabled ? '开启' : '关闭'}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
+  }
   if (entry.event === 'filter_changed') return `${entry.mode === 'whitelist' ? '白名单' : '黑名单'}（黑名单 ${String(entry.blacklist)} 项，白名单 ${String(entry.whitelist)} 项）`;
   if (entry.event === 'settings_changed' && Array.isArray(entry.fields)) return entry.fields.join('、');
   if (entry.event === 'login_failed' && entry.locked_seconds) return `锁定 ${String(entry.locked_seconds)} 秒`;
@@ -133,10 +168,26 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
   // 刷新操作记录：按当前过滤拉取。
   function refreshAudit(filter: 'all' | 'service_call' = auditFilter) {
-    getAudit(50, filter === 'service_call' ? 'service_call' : undefined)
+    getAudit(500, filter === 'service_call' ? 'service_call' : undefined)
       .then((entries) => setAudit(entries))
       .catch(() => undefined);
   }
+
+  /** 实体 id → 显示名：优先设置里的改名，其次自动发现的名字；前面带上所在房间，找不到时保留 id。 */
+  const entityName = useMemo(() => {
+    const rooms = new Map<string, string>((custom?.rooms ?? []).map((room) => [room.id, room.name] as const));
+    const assignments = custom?.assignments ?? {};
+    const names = new Map<string, string>();
+    for (const entity of discovered?.entities ?? []) names.set(entity.id, entity.name);
+    const overrides: Record<string, { name: string; icon: string }> = custom?.entities ?? {};
+    for (const [id, override] of Object.entries(overrides)) if (override.name) names.set(id, override.name);
+    return (id: string): string => {
+      const name = names.get(id);
+      if (!name) return id;
+      const room = rooms.get(assignments[id] ?? '');
+      return room && !name.includes(room) ? `${room} · ${name}` : name;
+    };
+  }, [custom, discovered]);
 
   useEffect(() => {
     let active = true;
@@ -711,7 +762,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
         {tab === 'audit' && (
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>最近 50 条登录、设置、布局与设备控制记录；按账户区分，标明是谁操作了什么；不含令牌和密码。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>最近 500 条登录、设置、布局与设备控制记录；按账户区分，标明是谁操作了什么；不含令牌和密码。</p></div></div>
             <div className="settings-row">
               <span id={`${formId}-audit-filter`}>范围</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-filter`}>
@@ -721,16 +772,21 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
               </div>
             </div>
             {audit.length === 0 ? <p className="settings-message">暂无记录</p> : (
-              <ul className="settings-audit settings-audit--with-user">
-                {audit.map((entry, index) => (
-                  <li key={`${entry.time}-${index}`} className={entry.event === 'login_failed' || entry.ok === false ? 'settings-audit__row--warn' : undefined}>
-                    <time>{entry.time.replace('T', ' ').slice(5, 19)}</time>
-                    <strong>{auditLabels[entry.event] ?? entry.event}</strong>
-                    <span className="settings-audit__user">{entry.user || '—'}</span>
-                    <span>{auditDetail(entry)}</span>
-                    <small>{entry.ip}</small>
-                  </li>
-                ))}
+              <ul className="settings-audit">
+                {audit.map((entry, index) => {
+                  const detail = auditDetail(entry, entityName);
+                  return (
+                    <li key={`${entry.time}-${index}`} className={entry.event === 'login_failed' || entry.ok === false ? 'settings-audit__row--warn' : undefined}>
+                      <div className="settings-audit__head">
+                        <time>{entry.time.replace('T', ' ').slice(5, 19)}</time>
+                        <strong>{auditLabels[entry.event] ?? entry.event}</strong>
+                        <span className="settings-audit__user">{entry.user || '—'}</span>
+                        <small>{entry.ip}</small>
+                      </div>
+                      {detail && <p className="settings-audit__detail">{detail}</p>}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>

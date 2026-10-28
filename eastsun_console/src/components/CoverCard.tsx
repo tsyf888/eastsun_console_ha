@@ -71,17 +71,22 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   const openDisabled = disabled || (cover.position !== undefined ? position >= 100 : cover.state === 'open');
   // 关闭按钮只在完全关闭（0%）时禁用。
   const closeDisabled = disabled || (cover.position !== undefined ? position <= 0 : cover.state === 'closed');
-  // 小卡空白处点卡片：在开与关之间反转（左上角电源键另走四段循环）。
-  const toggleCover = () => (active ? onClose(cover.id) : onOpen(cover.id));
   // 左上角电源键：开 → 停 → 关 → 停 循环，每次点击只下发一个指令，phase 决定按钮下一次的语义。
+  // 小卡空白处点击复用同一套逻辑，不再单独走“开/关反转”。
   const [powerPhase, setPowerPhase] = useState<CoverPowerPhase>(() => initialPowerPhase(cover));
   // 开合到位后把按钮切回“反向动作”：否则按钮会一直停在“停止”，下一次点击发出无效的停止指令。
-  // 只有带位置反馈的设备能可靠判断“完全开/关”，无位置反馈的设备保持四段循环。
+  // 运动中（opening/closing）不校正，保证“停止”图标在整个运动过程中可见；终态要求状态与位置同时到位，
+  // 避免乐观更新提前写出的 open/closed 把停止图标瞬间刷掉。无位置反馈的设备只在确认关闭时校正。
   useEffect(() => {
-    if (!cover.available || cover.position === undefined) return;
-    if (cover.position >= 100) setPowerPhase('close');
-    else if (cover.position <= 0) setPowerPhase('open');
-  }, [cover.available, cover.position]);
+    if (!cover.available) return;
+    if (cover.state === 'opening' || cover.state === 'closing') return;
+    if (cover.position !== undefined) {
+      if (cover.state === 'open' && cover.position >= 100) setPowerPhase('close');
+      else if (cover.state === 'closed' && cover.position <= 0) setPowerPhase('open');
+      return;
+    }
+    if (cover.state === 'closed') setPowerPhase('open');
+  }, [cover.available, cover.state, cover.position]);
   const cyclePower = () => {
     if (powerPhase === 'open') {
       onOpen(cover.id);
@@ -122,7 +127,7 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
 
   return (
     <>
-    <TileFrame {...layout} hkTiles={hkSmall} className={`cover-card${compact ? ' cover-card--compact' : ''}`} active={active} onOpen={compact && cover.available ? toggleCover : undefined} onLongPress={hkSmall && cover.available ? () => setDetailOpen(true) : undefined}>
+    <TileFrame {...layout} hkTiles={hkSmall} className={`cover-card${compact ? ' cover-card--compact' : ''}`} active={active} onOpen={compact && cover.available ? cyclePower : undefined} onLongPress={hkSmall && cover.available ? () => setDetailOpen(true) : undefined}>
       {!compact ? (
         <>
           <div className="tile__top">

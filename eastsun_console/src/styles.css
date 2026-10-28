@@ -994,13 +994,14 @@ strong { font-weight: 600; }
 .entity-filter__row--hidden .entity-filter__name, .entity-filter__row--hidden .entity-filter__kind { opacity: .5; }
 
 .settings-audit { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.settings-audit li { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: baseline; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg); font-size: 12.5px; }
+/* 每条记录两行：时间 / 事件 / 账户 / IP 一行，详情一行；详情过长时整体换行，不截断。 */
+.settings-audit li { display: flex; flex-direction: column; gap: 5px; padding: 9px 12px; border-radius: var(--radius-sm); background: var(--bg); font-size: 12.5px; }
+.settings-audit__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
 .settings-audit time, .settings-audit small { color: var(--text-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .settings-audit strong { font-weight: 600; }
-.settings-audit span { min-width: 0; overflow: hidden; color: var(--text-2); text-overflow: ellipsis; white-space: nowrap; }
+.settings-audit small { margin-left: auto; }
+.settings-audit__detail { margin: 0; color: var(--text-2); line-height: 1.55; overflow-wrap: anywhere; }
 .settings-audit__row--warn strong { color: var(--alert); }
-/* 带操作账户列的记录列表：time | event | user | detail | ip */
-.settings-audit--with-user li { grid-template-columns: auto auto auto minmax(0, 1fr) auto; }
 .settings-audit__user { color: var(--text-3); font-size: 11.5px; font-weight: 500; }
 
 .toast { position: fixed; right: 0; bottom: 24px; left: 0; z-index: 80; width: fit-content; max-width: min(520px, calc(100vw - 32px)); margin: 0 auto; padding: 12px 18px; border: 1px solid rgba(255, 106, 92, .4); border-radius: var(--radius-sm); background: var(--toast); color: var(--alert-text); font-size: 13.5px; box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .8); animation: pop-in .24s var(--ease) both; cursor: pointer; }
@@ -1044,9 +1045,7 @@ strong { font-weight: 600; }
   .settings-field-row { grid-template-columns: minmax(0, 1fr); }
   .settings-tabs-bar { align-items: stretch; flex-direction: column; }
   .settings-tabs { flex-wrap: nowrap; }
-  .settings-audit li { grid-template-columns: auto minmax(0, 1fr); }
-  .settings-audit--with-user li { grid-template-columns: auto minmax(0, 1fr); }
-  .settings-audit--with-user .settings-audit__user { grid-column: 2 / -1; }
+  .settings-audit li { padding: 9px 10px; }
   .settings-audit small { display: none; }
   .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
   .settings-row:has(.settings-segmented) { align-items: flex-start; flex-direction: column; }
