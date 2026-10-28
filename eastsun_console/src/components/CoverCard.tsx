@@ -2,12 +2,30 @@ import { ArrowDownToLine, ArrowUpFromLine, Blinds, CircleStop, SlidersHorizontal
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { deviceIcon } from '../appearance';
 import { releasePointerFocus } from '../focus';
 import type { CoverDevice, Room } from '../types';
 import { DelayTimerBlock } from './DelayTimer';
 import { TileFrame } from './TileFrame';
 import type { TileLayoutProps } from './TileFrame';
+
+/**
+ * 电源键的四段循环：打开 → 停止 → 关闭 → 停止 → 再打开…
+ * 不支持停止的设备（supportsStop 为 false）退化为 打开 ↔ 关闭 两段。
+ */
+type CoverPowerPhase = 'open' | 'stopThenClose' | 'close' | 'stopThenOpen';
+
+const powerPhaseLabels: Record<CoverPowerPhase, string> = {
+  open: '打开',
+  stopThenClose: '停止',
+  close: '关闭',
+  stopThenOpen: '停止',
+};
+
+/** 循环起点按当前状态推断：已关（或状态未知）从“打开”开始，其余从“关闭”开始。 */
+function initialPowerPhase(cover: CoverDevice): CoverPowerPhase {
+  const closed = cover.position !== undefined ? cover.position <= 0 : cover.state === 'closed';
+  return closed || cover.state === 'unknown' ? 'open' : 'close';
+}
 
 interface CoverCardProps {
   layout: TileLayoutProps;
@@ -28,7 +46,6 @@ interface CoverCardProps {
 /** 窗帘 / 卷帘卡片：开合开关、位置滑杆（0 全关 - 100 全开）与停止。 */
 export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosition, childDevices, onTimerSet, onTimerClear }: CoverCardProps) {
   const { size, editing, hkTiles: hk } = layout;
-  const DeviceIcon = deviceIcon(cover);
   // HomeKit 模式：1×1 横排窄卡，2×1 用原版紧凑方形内容，点击按原结构。
   const hkSmall = Boolean(hk) && size === '1x1';
   const compact = size === '1x1' || Boolean(hk);
@@ -54,8 +71,49 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   const openDisabled = disabled || (cover.position !== undefined ? position >= 100 : cover.state === 'open');
   // 关闭按钮只在完全关闭（0%）时禁用。
   const closeDisabled = disabled || (cover.position !== undefined ? position <= 0 : cover.state === 'closed');
-  // 小卡空白处 / 电源按钮：在开与关之间反转。
+  // 小卡空白处点卡片：在开与关之间反转（左上角电源键另走四段循环）。
   const toggleCover = () => (active ? onClose(cover.id) : onOpen(cover.id));
+  // 左上角电源键：开 → 停 → 关 → 停 循环，每次点击只下发一个指令，phase 决定按钮下一次的语义。
+  const [powerPhase, setPowerPhase] = useState<CoverPowerPhase>(() => initialPowerPhase(cover));
+  // 最近一次经电源键下发的指令，用于区分“自己停在了半路”和“外部改变了终态”。
+  const lastCommandRef = useRef<'open' | 'close' | 'stop' | null>(null);
+  // 外部（HA 自动化 / 其它入口）把窗帘移到与 phase 相反的终态后，折叠掉“无事可做”的 phase：
+  // 例如刚打开就被外部关闭，下一次点击应回到“打开”，而不是先落两次空操作。
+  // 只处理真正的终态，且不干扰用户自己“停在半路”后按循环继续操作的情况。
+  useEffect(() => {
+    if (!cover.available) return;
+    const fullyClosed = cover.state === 'closed';
+    // 有位置反馈时必须到 100% 才算全开，避免“关到一半停住”被误判为已全开。
+    const fullyOpen = cover.state === 'open' && (cover.position === undefined || cover.position >= 100);
+    if (fullyClosed) {
+      setPowerPhase((phase) => (phase === 'stopThenClose' || phase === 'close' ? 'open' : phase));
+    } else if (fullyOpen && !(cover.position === undefined && lastCommandRef.current === 'stop')) {
+      // 无位置反馈的设备在“停止”后无法判断是否全开，保持 phase 交给下一次点击决定。
+      setPowerPhase((phase) => (phase === 'stopThenOpen' || phase === 'open' ? 'close' : phase));
+    }
+  }, [cover.available, cover.state, cover.position]);
+  const cyclePower = () => {
+    if (powerPhase === 'open') {
+      lastCommandRef.current = 'open';
+      onOpen(cover.id);
+      setPowerPhase(cover.supportsStop ? 'stopThenClose' : 'close');
+      return;
+    }
+    if (powerPhase === 'close') {
+      lastCommandRef.current = 'close';
+      onClose(cover.id);
+      setPowerPhase(cover.supportsStop ? 'stopThenOpen' : 'open');
+      return;
+    }
+    lastCommandRef.current = 'stop';
+    onStop(cover.id);
+    setPowerPhase(powerPhase === 'stopThenClose' ? 'close' : 'open');
+  };
+  const powerIcon = powerPhase === 'open'
+    ? <ArrowUpFromLine size={21} />
+    : powerPhase === 'close'
+      ? <ArrowDownToLine size={21} />
+      : <CircleStop size={21} />;
   const label = `${room.name}${cover.name}`;
   const detailId = useId();
   const detailRef = useRef<HTMLDialogElement>(null);
@@ -64,7 +122,7 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   useEffect(() => { if (disabled) setDetailOpen(false); }, [disabled]);
 
   const powerButton = (
-    <button type="button" className="tile__power" onClick={toggleCover} disabled={disabled} aria-label={`${active ? '关闭' : '打开'}${label}`} aria-pressed={active}><DeviceIcon size={21} /></button>
+    <button type="button" className="tile__power" onClick={cyclePower} disabled={disabled} aria-label={`${powerPhaseLabels[powerPhase]}${label}`} aria-pressed={active} title={`${powerPhaseLabels[powerPhase]}${label}`}>{powerIcon}</button>
   );
 
   const wideButtons = (

@@ -91,7 +91,10 @@ export function applyCommand(device: Device, command: DeviceCommand): Device {
       if (device.kind !== 'fan' || device.oscillating === undefined) return device;
       return { ...device, oscillating: command.oscillating };
     case 'coverOpen':
-      if (device.kind !== 'cover' || device.state === 'open' || device.state === 'opening') return device;
+      if (device.kind !== 'cover') return device;
+      // 有位置反馈时以位置判断：未到 100% 都允许下发 open_cover（HA 的状态在位置 >0 时已是 open，
+      // 只看 state 会导致半开状态下“打开”按钮点了没反应）；无位置反馈时退回按状态判断。
+      if (device.position !== undefined ? device.position >= 100 : device.state === 'open' || device.state === 'opening') return device;
       return { ...device, state: 'open' };
     case 'coverClose':
       if (device.kind !== 'cover' || device.state === 'closed' || device.state === 'closing') return device;
