@@ -1,4 +1,4 @@
-import { ArrowUpDown, House, Music, Settings, Layers, Lightbulb, Power, AirVent, Blinds, Fan, Wind, Radio, Camera, ShieldAlert, Bot } from 'lucide-react';
+import { ArrowUpDown, House, Music, Settings, Lightbulb, Power, AirVent, Blinds, Fan, Wind, Radio, Camera, ShieldAlert, Bot } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { apiPath } from '../consoleApi';
 import type { PersonStatus } from '../consoleClient';
@@ -115,12 +115,12 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onO
         ))}
         {categories.length > 0 && (
           <div className="side-nav__group" role="group" aria-label="类别">
-            <span className="side-nav__label" aria-hidden="true"><Layers size={12} />类别</span>
+            <span className="side-nav__label" aria-hidden="true">类别</span>
             {categories.map(({ kind, count }) => {
               const { Icon, label } = CATEGORY_META[kind];
               return (
                 <button key={kind} type="button" title={`${label}（${count}）`} aria-label={`${label}，共 ${count} 个`} aria-current={currentCategory === kind ? 'page' : undefined} onClick={() => onOpenCategory?.(kind)}>
-                  <Icon size={18} /><span>{label}</span><em className="side-nav__count">{count}</em>
+                  <Icon size={18} /><span>{label}</span>
                 </button>
               );
             })}

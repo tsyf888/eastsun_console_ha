@@ -21,9 +21,11 @@ const powerPhaseLabels: Record<CoverPowerPhase, string> = {
   stopThenOpen: '停止',
 };
 
-/** 指令刚发出后的静默期：这段时间设备状态可能还是旧值或乐观值，按钮必须保持“停止”。 */
+/** 指令刚发出后的静默期：这段时间设备状态可能还是旧值或乐观值，按钮必须保持"停止"。 */
 const holdMs = 2_000;
-/** 兜底等待：设备一直不上报终态时也切回反向动作，避免按钮永远停在“停止”。 */
+/** 到达终态的信号需要稳定这么久才信：防止乐观更新、驱动抖动短暂上报终态后立刻翻转。 */
+const holdArrivedMs = 800;
+/** 兜底等待：设备一直不上报终态时也切回反向动作，避免按钮永远停在"停止"。 */
 const maxWaitMs = 60_000;
 
 /** 循环起点按当前状态推断：已关（或状态未知）从“打开”开始，其余从“关闭”开始。 */
@@ -81,7 +83,7 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   const [powerPhase, setPowerPhase] = useState<CoverPowerPhase>(() => initialPowerPhase(cover));
   // 乐观更新会在指令刚发出时就把状态写成终态，此时用设备状态反推按钮，“停止”会一闪而过。
   // 因此记录本次下发的方向：运动期间一律保持“停止”，确认到位或兜底超时后再切成反向动作。
-  const intentRef = useRef<{ target: 'open' | 'close'; since: number } | null>(null);
+  const intentRef = useRef<{ target: 'open' | 'close'; since: number; stableSince: number | null } | null>(null);
   const [recheckTick, setRecheckTick] = useState(0);
   useEffect(() => {
     if (!cover.available) { intentRef.current = null; return; }
@@ -89,12 +91,22 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
     if (intent) {
       const elapsed = Date.now() - intent.since;
       const moving = cover.state === 'opening' || cover.state === 'closing';
-      const arrived = intent.target === 'open'
+      const targetReached = intent.target === 'open'
         ? cover.position !== undefined ? cover.position >= 99 : cover.state === 'open'
         : cover.position !== undefined ? cover.position <= 1 : cover.state === 'closed';
-      // 刚下发指令（状态可能还是旧值或乐观值）或设备明确在运动中：继续显示“停止”。
-      if (elapsed < holdMs || moving) return;
-      if (arrived || elapsed >= maxWaitMs) {
+      // 运动中、静默期内（刚发指令状态可能还是旧值或乐观值）：一律保持停止。
+      if (elapsed < holdMs || moving) { intent.stableSince = null; return; }
+      // 到达终态：需要稳定 holdArrivedMs 才算真到位（防止 HA 短暂误报）。
+      if (targetReached) {
+        if (intent.stableSince === null) intent.stableSince = Date.now();
+        if (Date.now() - intent.stableSince >= holdArrivedMs) {
+          intentRef.current = null;
+          setPowerPhase(intent.target === 'open' ? 'close' : 'open');
+        }
+        return;
+      }
+      // 未到达终态但已出静默期：继续等，不清空稳定时间。
+      if (elapsed >= maxWaitMs) {
         intentRef.current = null;
         setPowerPhase(intent.target === 'open' ? 'close' : 'open');
       }
@@ -116,13 +128,13 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
   const cyclePower = () => {
     if (powerPhase === 'open') {
       onOpen(cover.id);
-      intentRef.current = { target: 'open', since: Date.now() };
+      intentRef.current = { target: 'open', since: Date.now(), stableSince: null };
       setPowerPhase(cover.supportsStop ? 'stopThenClose' : 'close');
       return;
     }
     if (powerPhase === 'close') {
       onClose(cover.id);
-      intentRef.current = { target: 'close', since: Date.now() };
+      intentRef.current = { target: 'close', since: Date.now(), stableSince: null };
       setPowerPhase(cover.supportsStop ? 'stopThenOpen' : 'open');
       return;
     }

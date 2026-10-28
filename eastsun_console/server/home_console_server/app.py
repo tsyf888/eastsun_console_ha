@@ -778,17 +778,19 @@ class ConsoleServer:
     async def handle_ws(self, request: web.Request) -> web.WebSocketResponse:
         # WS 鉴权：未登录拒绝升级，前端在调 /api/admin/me 时已发现未登录并跳登录页。
         # Ingress 访客（侧边栏）没有会话也允许连接，但只能查看状态，任何设备控制都会被拒绝。
-        session = self._current_session(request)
-        visitor = False
-        if not session:
-            if not _is_ingress_request(request):
-                return web.Response(status=401, text="需要登录")
-            session = dict(INGRESS_VISITOR)
-            visitor = True
+        initial_session = self._current_session(request)
+        initial_ingress = _is_ingress_request(request)
+        if not initial_session and not initial_ingress:
+            return web.Response(status=401, text="需要登录")
         ws = web.WebSocketResponse(heartbeat=30)
         await ws.prepare(request)
         self.clients.add(ws)
-        username = session["username"]
+        # 后续每条 call_service 都重新查 session：Ingress 访客登录后 cookie 已更新，
+        # 不能让建连时固化的 visitor 状态阻塞后续操作。
+        if initial_session:
+            username = initial_session["username"]
+        else:
+            username = INGRESS_VISITOR["username"]
         try:
             await ws.send_json({"type": "hello", "layout": self.store.layout, "catalogue": self.catalogue(), "custom": self.public_custom()})
             await ws.send_json(self.status_message())
@@ -805,7 +807,17 @@ class ConsoleServer:
                     # 页面用来确认连接仍然可用（手机锁屏后旧连接可能已失效却未关闭）。
                     await ws.send_json({"type": "pong"})
                 elif payload.get("type") == "call_service":
-                    task = asyncio.create_task(self._call_service(ws, payload, client_ip(request), username, visitor))
+                    session = self._current_session(request)
+                    if session:
+                        visitor = False
+                        username_now = session["username"]
+                    elif initial_ingress:
+                        visitor = True
+                        username_now = INGRESS_VISITOR["username"]
+                    else:
+                        visitor = True
+                        username_now = username
+                    task = asyncio.create_task(self._call_service(ws, payload, client_ip(request), username_now, visitor))
                     self._tasks.add(task)
                     task.add_done_callback(self._tasks.discard)
         finally:

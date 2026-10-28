@@ -821,6 +821,9 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
 }) {
   const formId = useId();
   const isAdmin = user?.isAdmin ?? false;
+  // ingress 表示"请求来自 HA 侧边栏入口"（登录后仍为 true）；
+  // 纯访客 = Ingress 入口 + 还没登录。身份显示和只读判断要看这个，不能只看 ingress。
+  const isPureVisitor = ingress && !user;
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -869,8 +872,8 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
       </div></div>
       <div className="settings-row">
         <span>当前身份</span>
-        <strong>{ingress ? '侧边栏访客' : (user?.username ?? '子账户')}</strong>
-        <small>{ingress ? '只读' : '子账户'}</small>
+        <strong>{isPureVisitor ? '侧边栏访客' : (user?.username ?? '子账户')}</strong>
+        <small>{isPureVisitor ? '只读' : (isAdmin ? '管理员' : '子账户')}</small>
       </div>
       <form onSubmit={verifyAdmin}>
         <label className="settings-field" htmlFor={`${formId}-admin-username`}>
@@ -888,7 +891,7 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
           <button type="submit" className="small-button small-button--selected" disabled={checking}>
             <ShieldCheck size={15} />{checking ? '正在验证…' : (ingress ? '登录' : '验证管理员')}
           </button>
-          {!ingress && (
+          {!isPureVisitor && (
             <button type="button" className="small-button small-button--danger" onClick={onLogout} disabled={checking}><LogOut size={15} />退出登录</button>
           )}
         </div>

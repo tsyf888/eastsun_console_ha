@@ -443,10 +443,16 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     setLayout((previous) => toggleFavorite(previous, id));
   }
 
-  /** 当前页可排序的设备：全屋页为常用设备，房间页为该房间设备。 */
+  /** 当前页可排序的设备：全屋页为常用设备，房间页为该房间设备，类别页为该类别所有设备。 */
   function sortable(): { scope: string; ids: string[] } {
-    const devices = page === 'home' ? favoriteDevices : selectedRoomDevices;
-    return { scope: page === 'home' ? favoritesScope : selectedRoom.id, ids: devices.map((device) => device.id) };
+    if (page === 'home') return { scope: favoritesScope, ids: favoriteDevices.map((device) => device.id) };
+    if (page === 'category') {
+      const filtered = home.devices.filter((device) => categoryOf(device) === selectedCategoryKind);
+      const ordered = orderedDevices(filtered, layout.order[`category/${selectedCategoryKind}`]);
+      if (!layout.order[`category/${selectedCategoryKind}`]) ordered.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+      return { scope: `category/${selectedCategoryKind}`, ids: ordered.map((device) => device.id) };
+    }
+    return { scope: selectedRoom.id, ids: selectedRoomDevices.map((device) => device.id) };
   }
 
   function moveDevice(id: string, direction: -1 | 1) {
@@ -620,7 +626,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                   {homeCameras.length > 0 && <CameraBoard title="摄像头" cameras={homeCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
                   <div className="home-duo-row__favorites">
                     <div className="section-heading">
-                      <h2>常用设备</h2>
+                      <h2>常用设备 <em>· {favoriteDevices.length} 个</em></h2>
                       <div className="section-heading__actions">
                         <span>{!canControl ? '只读模式，设备操作不会执行' : editingLayout ? '拖动调整顺序，右下角切换尺寸，点 ★ 移出常用' : '在房间“编辑布局”里点 ☆ 加入常用'}</span>
                         {canControl && editButton}
@@ -636,7 +642,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                 {homeCameras.length > 0 && <CameraBoard title="摄像头" cameras={homeCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
                 {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
                 <div className="section-heading">
-                  <h2>常用设备</h2>
+                  <h2>常用设备 <em>· {favoriteDevices.length} 个</em></h2>
                   <div className="section-heading__actions">
                     <span>{!canControl ? '只读模式，设备操作不会执行' : editingLayout ? '拖动调整顺序，右下角切换尺寸，点 ★ 移出常用' : '在房间“编辑布局”里点 ☆ 加入常用'}</span>
                     {canControl && (favoriteDevices.length > 0 || editingLayout) && editButton}
@@ -648,7 +654,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               </>
             )}
             <div className="section-heading section-heading--spaced">
-              <h2>正在运行</h2>
+              <h2>正在运行 <em>· {runningNow} 个</em></h2>
               <div className="section-heading__actions">
                 {runningInFavorites > 0 && <span>{runningOthers.length > 0 ? `其中 ${runningInFavorites} 个在常用设备中` : `都在上方常用设备中`}</span>}
                 {canControl && allOffTargets.length > 0 && (
@@ -668,9 +674,19 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             {roomCameras.length > 0 && <CameraBoard title="摄像头" cameras={roomCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
             {roomScenes.length > 0 && <SceneBoard title="情景模式" scenes={roomScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
             <div className="section-heading">
-              <h2>设备与状态</h2>
+              <h2>设备与状态 <em>· {selectedRoomDevices.length} 个</em></h2>
               <div className="section-heading__actions">
                 {selectedRoomLitCount > 0 && <span className="section-heading__lit">{selectedRoomLitCount} 盏灯亮</span>}
+                {(() => {
+                  const counts = new Map<string, number>();
+                  for (const d of selectedRoomDevices) {
+                    const kind = categoryOf(d);
+                    if (!kind) continue;
+                    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+                  }
+                  const stats = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([kind, n]) => `${CATEGORY_META[kind as CategoryKind].label} ${n}`).join(' / ');
+                  return stats ? <span className="section-heading__stats">{stats}</span> : null;
+                })()}
                 {canControl && editButton}
               </div>
             </div>
@@ -684,9 +700,20 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         {page === 'category' && (() => {
           const filtered = home.devices.filter((device) => categoryOf(device) === selectedCategoryKind);
           const Icon = CATEGORY_META[selectedCategoryKind].Icon;
+          const savedOrder = layout.order[`category/${selectedCategoryKind}`];
+          const ordered = savedOrder
+            ? orderedDevices(filtered, savedOrder)
+            : [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+          function categoryCard(device: Device, index: number) {
+            return card(device, roomOf(device), {
+              size: tileSizeForDevice(device, layout.sizes[device.id]),
+              onSizeChange: changeSize,
+              ...editingTile(device, index, ordered.length),
+            });
+          }
           return (
             <>
-              {filtered.length === 0 ? (
+              {ordered.length === 0 ? (
                 <div className="empty-room">
                   <Icon size={36} aria-hidden="true" />
                   <p>当前没有「{CATEGORY_META[selectedCategoryKind].label}」类设备</p>
@@ -694,10 +721,14 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               ) : (
                 <section className="home-section">
                   <div className="section-heading">
-                    <h2><Icon size={18} />{CATEGORY_META[selectedCategoryKind].label} <em>· {filtered.length} 个</em></h2>
+                    <h2><Icon size={18} />{CATEGORY_META[selectedCategoryKind].label} <em>· {ordered.length} 个</em></h2>
+                    <div className="section-heading__actions">
+                      <span>{!canControl ? '只读模式，设备操作不会执行' : editingLayout ? '拖动调整顺序，右下角切换尺寸' : '默认按名称自然排序，可编辑布局保存'}</span>
+                      {canControl && editButton}
+                    </div>
                   </div>
-                  <AdaptiveGrid className="tile-grid tile-grid--room" scale={tileScale}>
-                    {filtered.map((device) => card(device, roomOf(device), { size: '1x1' }))}
+                  <AdaptiveGrid className="tile-grid tile-grid--category" scale={tileScale}>
+                    {ordered.map((device, index) => categoryCard(device, index))}
                   </AdaptiveGrid>
                 </section>
               )}

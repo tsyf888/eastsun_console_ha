@@ -2020,10 +2020,14 @@ html, body { overscroll-behavior-y: none; }
 
 @media (max-width: 600px) {
   .scene-add { grid-template-columns: minmax(0, 1fr); }
+  .scene-add > .small-button { justify-self: stretch; }
   .room-manage-row { flex-wrap: wrap; }
   .scene-button { flex: 1 1 auto; justify-content: center; }
-  .scene-manage-row { flex-wrap: wrap; row-gap: 6px; }
-  .scene-manage-row code { flex: 1 1 100%; order: 3; padding-left: 25px; }
+  /* 情景按钮列表：名称占首行，entity ID 单独一行缩进对齐，四个操作按钮沉底 */
+  .scene-manage-row { flex-wrap: wrap; row-gap: 4px; gap: 4px; padding: 8px 10px; }
+  .scene-manage-row strong { flex: 1 1 calc(100% - 20px); min-width: 0; }
+  .scene-manage-row code { flex: 1 1 100%; order: 3; padding-left: 22px; margin-top: 2px; }
+  .scene-manage-row .icon-button { width: 36px; height: 36px; }
   .metric-source-row__current em { margin-left: 8px; }
   /* 电量传感器：改 2 行布局，名字在上、按钮在右下方 */
   .battery-manage-row { flex-wrap: wrap; row-gap: 8px; }
@@ -2031,10 +2035,22 @@ html, body { overscroll-behavior-y: none; }
   .battery-manage-row__name { flex: 1 1 100%; }
   .battery-manage-row .small-button { order: 5; flex: none; }
   .battery-manage-row .icon-button { order: 6; margin-left: auto; }
-  /* 情景按钮风格选择器在小屏上更紧凑 */
+  /* 情景按钮风格选择器在小屏上更紧凑，允许换行 */
+  .scene-style-row { margin: 2px 0 12px; }
   .scene-style-picker { gap: 6px; }
   .scene-style { padding: 5px 9px 5px 6px; font-size: 12px; }
   .scene-style__swatch { width: 18px; height: 12px; }
+  /* 所有 settings-field 的 select / input / 图标按钮，严格卡父容器宽度 */
+  .settings-field { min-width: 0; }
+  .settings-field > * { max-width: 100%; }
+  .icon-pick-button { padding: 3px 10px 3px 5px; min-height: 40px; font-size: 12px; gap: 8px; }
+  .icon-pick-button .room-icon-button { width: 28px; height: 28px; }
+  /* scope-group（情景 / 摄像头按房间分组）移动端间距收小 */
+  .scope-group { margin-bottom: 12px; }
+  .scope-group h4 { margin: 2px 0 6px; font-size: 13px; }
+  /* 摄像头管理列表：在已有 grid 上改单列 */
+  .camera-manage-list li { grid-template-columns: minmax(0, 1fr); row-gap: 6px; padding: 8px 10px; }
+  .camera-manage-list__actions { justify-self: end; }
 }
 
 /* ---------- 安装为应用（PWA）：iOS 状态栏透明、内容延伸到顶部与刘海两侧 ---------- */
