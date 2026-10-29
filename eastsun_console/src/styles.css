@@ -1747,9 +1747,11 @@ strong { font-weight: 600; }
   .weather-place__tools { flex-basis: 100%; max-width: none; }
   .weather-now__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .weather-day { grid-template-columns: 48px 26px minmax(0, 1fr) minmax(120px, 44%); gap: 8px; }
-  /* 手机主页：寄语与时间/日期/星期（含农历行）隐藏；页头一行排布——沉浸/设置按钮最左、连接徽标随后、天气最右，不换行 */
+  /* 手机主页：寄语与时间/日期/星期隐藏，只保留可点的农历一行；页头一行排布——沉浸/设置按钮最左、连接徽标随后、天气最右，不换行 */
   .hero--home .hero__brand { display: none; }
   .hero--home .hero__title { display: none; }
+  .hero--home .hero__almanac { display: block; margin: 6px 0 0; min-width: 0; color: var(--text-2); font-size: 12.5px; }
+  .hero--home .hero__almanac .hero__subline-button { display: block; max-width: 100%; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
   .hero--home .hero__top { justify-content: flex-start; gap: 6px; }
   .hero--home .hero__top .hero__actions { gap: 6px; }
   .hero--home .hero__top .hero__actions .icon-button { order: -1; }
@@ -2111,6 +2113,8 @@ html, body { overscroll-behavior-y: none; }
   cursor: pointer; transition: color .18s;
 }
 .hero__subline-button:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+/* 农历行：桌面端由标题区副标题显示，手机端标题区被隐藏，改由这一行承担 */
+.hero__almanac { display: none; }
 
 /* ---------- 设备延时关闭（设置弹窗内，米家风格：开关 + 延迟时间行 + 紧凑滚轮） ---------- */
 .timer-block { border-top: 1px solid var(--glass-border); margin-top: 14px; padding-top: 12px; display: grid; gap: 8px; }

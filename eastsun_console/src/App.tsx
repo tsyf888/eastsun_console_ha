@@ -336,7 +336,14 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const allCameras = server.custom?.cameras ?? [];
   const homeCameras = allCameras.filter((camera) => camera.scope === 'home');
   const roomCameras = allCameras.filter((camera) => camera.scope === selectedRoom.id);
-  const selectedRoomDevices = useMemo(() => orderedDevices(getRoomDevices(home, selectedRoom.id), layout.order[selectedRoom.id]), [home, selectedRoom.id, layout.order]);
+  // 房间页设备：首次进入（没有保存过顺序时）按名称自然排序，与类别详情页一致；拖动后以后端保存的顺序为准。
+  const selectedRoomDevices = useMemo(() => {
+    const roomDevices = getRoomDevices(home, selectedRoom.id);
+    const savedOrder = layout.order[selectedRoom.id];
+    return savedOrder
+      ? orderedDevices(roomDevices, savedOrder)
+      : [...roomDevices].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+  }, [home, selectedRoom.id, layout.order]);
   const selectedRoomLitCount = selectedRoomDevices.filter(isLit).length;
   // 区域有人传感器状态（后端按“或”计算后下发）；只给配置过传感器的区域显示徽标。
   const occupancy = server.status?.occupancy;
@@ -593,6 +600,10 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
           {/* 天气常驻页头操作行行尾：桌面端 CSS 隐藏（用右侧大天气卡），手机分辨率显示在设置按钮右边 */}
           {page === 'home' && <WeatherCompact weather={weather} onOpen={() => setWeatherOpen(true)} />}
         </div>
+        {/* 手机端农历行：标题区在手机上整体隐藏，这里单独补一行可点的农历，点开黄历详情 */}
+        {page === 'home' && homeSubline && (
+          <p className="hero__almanac"><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button></p>
+        )}
         <div className={`hero__body ${enterClass}`} key={pageKey}>
           <div className="hero__main">
             <div className="hero__title">
