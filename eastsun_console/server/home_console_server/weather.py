@@ -22,8 +22,10 @@ import aiohttp
 
 WEATHER_HOST = "d1.weather.com.cn"
 SEARCH_HOST = "toy1.weather.com.cn"
+GEONG_HOST = "d7.weather.com.cn"
+METEO_HOST = "api.open-meteo.com"
 WEATHER_TTL = 600          # 实况 + 预报缓存 10 分钟
-GEO_TTL = 86_400           # 城市搜索缓存 1 天
+GEO_TTL = 86_400           # 城市搜索 & 经纬度缓存 1 天
 CACHE_LIMIT = 500
 
 HTTP_HEADERS = {
@@ -185,6 +187,77 @@ class Weather:
         # 天气网公开接口不支持按坐标反查城市；提示用户改用城市搜索。
         raise WeatherError("中国天气网暂不支持坐标定位，请在搜索框输入城市名选择", 404)
 
+    async def _geong_coords(self, areaid: str) -> tuple[float, float] | None:
+        """d7.weather.com.cn/geong：根据 areaid 拿经纬度；失败返回 None（不影响主流程）。"""
+        cache_key = ("geong", areaid)
+        cached = self._cache.get(cache_key)
+        if cached and cached[0] > time.monotonic():
+            return cached[1]  # type: ignore[return-value]
+        params = json.dumps({"method": "stationinfo", "areaid": areaid}, ensure_ascii=False)
+        try:
+            if self._session is None or self._session.closed:
+                self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10), trust_env=True)
+            async with self._session.get(
+                f"http://{GEONG_HOST}/geong/v1/api", params={"params": params}, headers=HTTP_HEADERS,
+            ) as response:
+                if response.status >= 400:
+                    return None
+                payload = await response.json(content_type=None)
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError):
+            return None
+        loc = payload.get("location") or {}
+        try:
+            coord = (float(loc["lng"]), float(loc["lat"]))
+        except (KeyError, TypeError, ValueError):
+            return None
+        if len(self._cache) >= CACHE_LIMIT:
+            now = time.monotonic()
+            self._cache = {key: value for key, value in self._cache.items() if value[0] > now}
+        self._cache[cache_key] = (time.monotonic() + GEO_TTL, coord)
+        return coord
+
+    async def _open_meteo_sun(self, lon: float, lat: float) -> dict[str, tuple[str, str]]:
+        """Open-Meteo 日出日落：返回 {fx_date: (sunrise_hhmm, sunset_hhmm), ...}，最多 7 天。"""
+        cache_key = ("meteo", round(lon, 4), round(lat, 4))
+        cached = self._cache.get(cache_key)
+        if cached and cached[0] > time.monotonic():
+            return cached[1]  # type: ignore[return-value]
+        try:
+            if self._session is None or self._session.closed:
+                self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10), trust_env=True)
+            async with self._session.get(
+                f"https://{METEO_HOST}/v1/forecast",
+                params={
+                    "latitude": f"{lat:.4f}",
+                    "longitude": f"{lon:.4f}",
+                    "daily": "sunrise,sunset",
+                    "timezone": "Asia/Shanghai",
+                    "forecast_days": "7",
+                },
+                headers={"User-Agent": HTTP_HEADERS["User-Agent"]},
+            ) as response:
+                if response.status >= 400:
+                    return {}
+                payload = await response.json(content_type=None)
+        except (aiohttp.ClientError, asyncio.TimeoutError, json.JSONDecodeError):
+            return {}
+        daily = payload.get("daily") or {}
+        times = daily.get("time") or []
+        sunrises = daily.get("sunrise") or []
+        sunsets = daily.get("sunset") or []
+        result: dict[str, tuple[str, str]] = {}
+        for fx_date, sr, ss in zip(times, sunrises, sunsets):
+            # Open-Meteo 返回 ISO 8601："2026-10-29T06:39"，切 T 后面就是 HH:MM
+            sr_hm = str(sr).partition("T")[2][:5] if sr else ""
+            ss_hm = str(ss).partition("T")[2][:5] if ss else ""
+            if sr_hm and ss_hm:
+                result[str(fx_date)] = (sr_hm, ss_hm)
+        if len(self._cache) >= CACHE_LIMIT:
+            now = time.monotonic()
+            self._cache = {key: value for key, value in self._cache.items() if value[0] > now}
+        self._cache[cache_key] = (time.monotonic() + WEATHER_TTL, result)
+        return result
+
     async def forecast(self, location: str) -> dict[str, Any]:
         timestamp = str(int(time.time() * 1000))
         index_text = await self._get_text(
@@ -212,6 +285,11 @@ class Weather:
             "vis": str(sk.get("njd", "")).rstrip("km").strip(),
         }
         # 实况页里的 fc（若有）通常只含今天；优先用 weixinfc 的完整逐日数组。
+        # 日出日落：中国天气网接口不给，改用 Open-Meteo（经纬度从 geong 接口反查）。
+        sun_table: dict[str, tuple[str, str]] = {}
+        coords = await self._geong_coords(location) if LOCATION_ID.match(location) else None
+        if coords:
+            sun_table = await self._open_meteo_sun(*coords)
         daily: list[dict[str, Any]] = []
         year = time.strftime("%Y")
         for day in daily_raw[:7]:
@@ -220,6 +298,7 @@ class Weather:
             if "/" in date_md:
                 m, d = date_md.split("/", 1)
                 fx_date = f"{year}-{int(m):02d}-{int(d):02d}"
+            sr, ss = sun_table.get(fx_date, ("", ""))
             daily.append({
                 "fxDate": fx_date,
                 "tempMax": str(day.get("fc", "")),
@@ -233,8 +312,8 @@ class Weather:
                 "precip": "",
                 "humidity": str(day.get("fm", "")),
                 "uvIndex": str(day.get("fk", "")),
-                "sunrise": "",
-                "sunset": "",
+                "sunrise": sr,
+                "sunset": ss,
             })
 
         return {
