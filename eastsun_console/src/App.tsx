@@ -36,7 +36,7 @@ import { useWeather } from './useWeather';
 import { useAlmanac } from './useAlmanac';
 import { AlmanacDialog } from './components/AlmanacDialog';
 import { weatherIcon } from './weather';
-import { applyAccent, applyStyle, applyTheme, resolveTheme } from './theme';
+import { applyAccent, applyStyle, applyTheme, daylight, resolveTheme } from './theme';
 
 type Page = 'home' | 'room' | 'settings' | 'music' | 'category';
 
@@ -379,6 +379,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const brandTitle = server.status?.brandTitle ?? '家庭控制';
   // 农历副标题：后端内置历法计算（中国时区），点击打开黄历详情；未加载好时不显示。
   const homeSubline = almanac?.text ?? '';
+  // 当天日出日落：来自天气（HA 官方天气服务），没配天气时回退到 06:00 / 18:00。
+  const { sunrise, sunset } = daylight(weather.forecast ?? null, now);
   // 同步网页标题为家庭名称
   useEffect(() => { document.title = brandTitle; }, [brandTitle]);
   // 我的家庭页大标题就是当前时间：19:49 9月28日 周一（侧栏导航仍用首页名称）。
@@ -602,7 +604,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         </div>
         {/* 手机端农历行：标题区在手机上整体隐藏，这里单独补一行可点的农历，点开黄历详情 */}
         {page === 'home' && homeSubline && (
-          <p className="hero__almanac"><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button></p>
+          <p className="hero__almanac"><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button><span className="hero__sun" title="当天日出日落">🌅 {sunrise} · 🌇 {sunset}</span></p>
         )}
         <div className={`hero__body ${enterClass}`} key={pageKey}>
           <div className="hero__main">
@@ -611,7 +613,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                 <h1>{page === 'room' ? selectedRoom.name : page === 'category' ? CATEGORY_META[selectedCategoryKind].label : page === 'settings' ? '设置' : page === 'music' ? '音乐' : <span className="datetime"><span className="datetime__time">{formatTime(now)}</span> <span className="datetime__part">{homeClockParts.monthDay}</span> <span className="datetime__part">{homeClockParts.weekday}</span></span>}{page === 'home' && season && <span className={`season-badge season-badge--${season}`} title="季节规则（设置 → 自动化）">{season === 'summer' ? <Sun size={14} /> : <Snowflake size={14} />}{season === 'summer' ? '夏季' : '冬季'}</span>}{occupancyKnown && occupancyScope && <OccupancyBadge occupied={occupancy?.[occupancyScope] === true} />}</h1>
                 {page === 'home'
                   ? (homeSubline
-                    ? <p><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button></p>
+                    ? <p><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button><span className="hero__sun" title="当天日出日落">🌅 {sunrise} · 🌇 {sunset}</span></p>
                     : null)
                   : <p>{page === 'room' ? '房间状态与设备控制' : page === 'category' ? '按类别查看所有房间的同类设备' : page === 'settings' ? '管理密码、Home Assistant 连接与控制权限' : '内嵌音乐界面'}</p>}
               </div>

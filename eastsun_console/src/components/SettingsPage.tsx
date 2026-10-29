@@ -91,14 +91,16 @@ function kindLabel(value: string): string {
 
 type Tab = 'connection' | 'rooms' | 'devices' | 'music' | 'automations' | 'display' | 'security' | 'audit' | 'login';
 
-const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean }[] = [
+const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean; autoHidden?: boolean }[] = [
   { id: 'connection', label: '连接', icon: Server, adminOnly: true },
   { id: 'rooms', label: '房间', icon: DoorOpen, adminOnly: true },
   { id: 'devices', label: '设备', icon: ListChecks, adminOnly: true },
   { id: 'music', label: '音乐', icon: Music, adminOnly: true },
   { id: 'automations', label: '自动化', icon: Workflow, adminOnly: true },
   { id: 'display', label: '显示', icon: LayoutTemplate, adminOnly: true },
-  { id: 'security', label: '安全', icon: KeyRound, adminOnly: true },
+  // 安全页（账户体系）在侧边栏自动登录下无意义：密码重置/增删子账户会影响控制台自身账户，
+  // 但侧边栏身份来自 HA，绕过了控制台账户体系，所以直接隐藏，避免歧义。
+  { id: 'security', label: '安全', icon: KeyRound, adminOnly: true, autoHidden: true },
   { id: 'audit', label: '记录', icon: History, adminOnly: true },
   { id: 'login', label: '登录', icon: LogOut },
 ];
@@ -175,8 +177,11 @@ function auditTime(entry: AuditEntry): string {
 export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuthenticated, onOpenSetup, onExpired }: SettingsPageProps) {
   const formId = useId();
   const isAdmin = user?.isAdmin ?? false;
-  // 非管理员只能看见「登录」板块；管理员看见全部。
-  const tabs = isAdmin ? allTabs : allTabs.filter((t) => !t.adminOnly);
+  const isAuto = Boolean(user?.auto);
+  // 非管理员只能看见「登录」板块；自动登录的管理员也隐藏「安全」（账户体系不适用）。
+  const tabs = isAdmin
+    ? allTabs.filter((t) => !(t.autoHidden && isAuto))
+    : allTabs.filter((t) => !t.adminOnly);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [haUrl, setHaUrl] = useState('');
   const [haToken, setHaToken] = useState('');

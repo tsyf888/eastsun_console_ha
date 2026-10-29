@@ -27,7 +27,7 @@ DEFAULT_PIN = "1234"
 THEMES = ("dark", "light", "auto")
 ACCENTS = ("amber", "coral", "rose", "violet", "sky", "teal", "green",
            "blue", "indigo", "purple", "pink", "orange", "yellow", "mint", "cyan")  # 强调色，第一个为默认
-STYLES = ("ios17", "glass26", "jelly", "ink", "helm", "courtyard", "porcelain", "neon", "sand")  # UI 风格，第一个（iOS17 经典）为默认
+STYLES = ("glass26", "ios17", "jelly", "ink", "helm", "courtyard", "porcelain", "neon", "sand")  # UI 风格，第一个（iOS26 玻璃）为默认
 DEFAULT_HOME_TITLE = "我的家庭"
 HOME_TITLE_MAX = 12
 DEFAULT_HOME_SUBTITLE = ""
@@ -389,10 +389,10 @@ def clean_custom(raw: Any, known_rooms: set[str] | None = None, known_entities: 
     if child_owner:
         assignments = {entity_id: room_id for entity_id, room_id in assignments.items() if entity_id not in child_owner}
 
-    # 情景按钮外观：缺省直角，未知值回退默认（旧配置没有该字段）。
+    # 情景按钮外观：缺省渐变，未知值回退默认（旧配置没有该字段）。
     scene_style = raw.get("sceneStyle")
     if scene_style not in SCENE_STYLES:
-        scene_style = SCENE_STYLES[0]
+        scene_style = "gradient"
 
     return {"rooms": rooms, "assignments": assignments, "scenes": scenes, "entities": entities,
             "cameras": cameras, "metricSources": metric_sources, "occupancy": occupancy, "battery": battery,
@@ -473,7 +473,7 @@ class Settings:
     filter_mode: str = "blacklist"  # blacklist：显示全部发现的实体，名单内的隐藏；whitelist：只显示名单内的
     blacklist: list[str] = field(default_factory=list)
     whitelist: list[str] = field(default_factory=list)
-    theme: str = "dark"  # dark | light | auto（日出到日落浅色，其余深色）
+    theme: str = "auto"  # dark | light | auto（日出到日落浅色，其余深色）
     home_title: str = DEFAULT_HOME_TITLE  # 首页标题，同时用作导航入口名称；不能为空
     brand_title: str = DEFAULT_BRAND_TITLE  # 家庭名称（导航栏品牌、网页标题），最长 10 个中文字
     accent: str = ACCENTS[0]  # 强调色（设置 → 显示），所有屏幕共用
@@ -603,7 +603,7 @@ class Store:
             filter_mode="whitelist" if raw.get("filterMode") == "whitelist" else "blacklist",
             blacklist=id_list(raw.get("blacklist")) or [],
             whitelist=id_list(raw.get("whitelist")) or [],
-            theme=raw.get("theme") if raw.get("theme") in THEMES else "dark",
+            theme=raw.get("theme") if raw.get("theme") in THEMES else "auto",
             home_title=str(raw.get("homeTitle") or DEFAULT_HOME_TITLE)[:HOME_TITLE_MAX],
             brand_title=str(raw.get("brandTitle") or DEFAULT_BRAND_TITLE)[:BRAND_TITLE_MAX],
             tile_scale=raw["tileScale"] if is_tile_scale(raw.get("tileScale")) else TILE_SCALE_DEFAULT,
