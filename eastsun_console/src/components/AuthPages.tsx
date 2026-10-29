@@ -90,8 +90,8 @@ export function SetupPage({ onCompleted, onCancel, currentUsername }: SetupPageP
     if (saving) return;
     setError(null);
     const u = username.trim();
-    if (u.length < 2 || u.length > 32 || !/^[A-Za-z0-9_.@-]+$/.test(u)) {
-      setError('账号需 2–32 位，仅字母、数字、下划线、点、@ 或连字符'); return;
+    if (u.length < 2 || u.length > 32 || !/^[A-Za-z0-9_\-.@\u3400-\u9fff]+$/.test(u)) {
+      setError('账号需 2–32 位，可用中文、字母、数字、下划线、点、@ 或连字符'); return;
     }
     if (password.length < 4 || password.length > 128) { setError('密码需 4–128 位'); return; }
     if (password !== confirm) { setError('两次输入的密码不一致'); return; }

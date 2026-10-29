@@ -182,12 +182,12 @@ export async function uploadPeopleImage(file: File): Promise<{ image: string; ur
 /**
  * 读取操作记录。
  * @param limit 条数
- * @param event 事件类型过滤；传 'service_call' 只看“操控设备记录”。
+ * @param event 事件类型过滤，可用逗号分隔多个；传 'service_call,scene_call' 只看“操控记录”。
  */
 export const getAudit = (limit = 500, event?: string) =>
   request<AuditEntry[]>(`/api/admin/audit?limit=${limit}${event ? `&event=${encodeURIComponent(event)}` : ''}`);
-/** “操控设备记录”：只看 service_call 事件，按账户名区分谁操作了什么设备。 */
-export const getDeviceAudit = (limit = 500) => getAudit(limit, 'service_call');
+/** “操控记录”：设备与场景两种操控事件，按账户名区分谁操作了什么。 */
+export const getDeviceAudit = (limit = 500) => getAudit(limit, 'service_call,scene_call');
 export const putLayout = (layout: ServerLayout) => request<ServerLayout>('/api/layout', 'PUT', layout);
 export const getEntities = () => request<DiscoveredEntities>('/api/admin/entities');
 export const putFilter = (filter: Partial<EntityFilter>) => request<DiscoveredEntities>('/api/admin/filter', 'PUT', filter);

@@ -48,6 +48,7 @@ const auditLabels: Record<string, string> = {
   automation_toggled: '开关自动化',
   season_rules_synced: '同步季节规则',
   service_call: '操控设备',
+  scene_call: '操控场景',
 };
 
 /** HA 服务名 → 中文动作；没有对应译名的服务原样显示，避免翻错。 */
@@ -109,9 +110,10 @@ function FormMessage({ message }: { message: Message }) {
  * 记录详情文案。设备实体换成“房间 · 名称”（找不到时保留实体 id），HA 服务名尽量译成中文，其余原样显示。
  */
 function auditDetail(entry: AuditEntry, entityName: (id: string) => string): string {
-  if (entry.event === 'service_call') {
-    const action = serviceLabels[String(entry.service)] ?? String(entry.service);
+  if (entry.event === 'service_call' || entry.event === 'scene_call') {
     const target = entry.entity ? `${entityName(String(entry.entity))} · ` : '';
+    // 情景按钮指向的是一键执行实体，动作统一显示为“执行”。
+    const action = entry.event === 'scene_call' ? '执行' : (serviceLabels[String(entry.service)] ?? String(entry.service));
     return `${target}${action}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
   }
   if (entry.event === 'season_rules_synced') return ['created', 'updated', 'deleted'].map((key) => [key, entry[key]] as const).filter(([, ids]) => Array.isArray(ids) && ids.length).map(([key, ids]) => `${{ created: '创建', updated: '更新', deleted: '删除' }[key]} ${(ids as string[]).join('、')}`).join('；');
@@ -158,8 +160,8 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   const [newAccountPassword, setNewAccountPassword] = useState('');
   const [accountMessage, setAccountMessage] = useState<Message>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
-  // 操作记录切换：全部 / 仅操控设备记录。
-  const [auditFilter, setAuditFilter] = useState<'all' | 'service_call'>('all');
+  // 操作记录切换：全部 / 仅操控设备与场景记录。
+  const [auditFilter, setAuditFilter] = useState<'all' | 'control'>('all');
   const [custom, setCustom] = useState<CustomConfig | null>(null);
   const [discovered, setDiscovered] = useState<DiscoveredEntities | null>(null);
   const [entityInput, setEntityInput] = useState('');
@@ -167,8 +169,8 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   const [tab, setTab] = useState<Tab>(isAdmin ? 'connection' : 'login');
 
   // 刷新操作记录：按当前过滤拉取。
-  function refreshAudit(filter: 'all' | 'service_call' = auditFilter) {
-    getAudit(500, filter === 'service_call' ? 'service_call' : undefined)
+  function refreshAudit(filter: 'all' | 'control' = auditFilter) {
+    getAudit(500, filter === 'control' ? 'service_call,scene_call' : undefined)
       .then((entries) => setAudit(entries))
       .catch(() => undefined);
   }
@@ -302,7 +304,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
     event.preventDefault();
     const username = newAccountName.trim();
     const password = newAccountPassword;
-    if (!/^[A-Za-z0-9_.@-]{2,32}$/.test(username)) { setAccountMessage({ tone: 'error', text: '账户名需 2-32 位，仅字母、数字、_ . @ -' }); return; }
+    if (!/^[A-Za-z0-9_\-.@\u3400-\u9fff]{2,32}$/.test(username)) { setAccountMessage({ tone: 'error', text: '账户名需 2-32 位，可用中文、字母、数字或 _ . @ -' }); return; }
     if (password.length < 4 || password.length > 128) { setAccountMessage({ tone: 'error', text: '密码长度需 4-128 位' }); return; }
     try {
       await createAccount(username, password);
@@ -760,7 +762,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             <form className="settings-field-row" onSubmit={saveNewAccount}>
               <label className="settings-field">
                 <span>账户名</span>
-                <input type="text" autoComplete="username" maxLength={32} placeholder="如 kid" value={newAccountName} onChange={(event) => { setNewAccountName(event.target.value); setAccountMessage(null); }} />
+                <input type="text" autoComplete="username" maxLength={32} placeholder="如 爸爸" value={newAccountName} onChange={(event) => { setNewAccountName(event.target.value); setAccountMessage(null); }} />
               </label>
               <label className="settings-field">
                 <span>密码</span>
@@ -778,11 +780,11 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
         {tab === 'audit' && (
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>最近 500 条登录、设置、布局与设备控制记录；按账户区分，标明是谁操作了什么；不含令牌和密码。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>最近 500 条登录、设置、布局与设备、场景控制记录；按账户区分，标明是谁操作了什么；不含令牌和密码。</p></div></div>
             <div className="settings-row">
               <span id={`${formId}-audit-filter`}>范围</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-filter`}>
-                {([['all', '全部记录'], ['service_call', '仅操控设备记录']] as const).map(([value, label]) => (
+                {([['all', '全部记录'], ['control', '仅操控记录']] as const).map(([value, label]) => (
                   <button key={value} type="button" role="radio" aria-checked={auditFilter === value} onClick={() => { setAuditFilter(value); refreshAudit(value); }}>{label}</button>
                 ))}
               </div>

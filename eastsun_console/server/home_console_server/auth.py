@@ -131,3 +131,34 @@ class LoginLimiter:
     def record_success(self) -> None:
         self.failures = 0
         self.locked_until = 0.0
+
+
+class AccountLimiters:
+    """按账号独立限流：每个用户名各有一个计数器，互不牵连。
+
+    A 输错密码只会锁定 A，不会影响其他账号；用户名不存在的尝试同样计入
+    输入的用户名，避免通过枚举探测绕过限流。为防随机用户名撑爆内存，
+    条目数达到上限时清理没有失败记录的账号。
+    """
+
+    MAX_ENTRIES = 200
+
+    def __init__(self) -> None:
+        self._limiters: dict[str, LoginLimiter] = {}
+
+    def for_user(self, username: str) -> LoginLimiter:
+        key = username.strip().lower() or "-"
+        limiter = self._limiters.get(key)
+        if limiter is None:
+            if len(self._limiters) >= self.MAX_ENTRIES:
+                self._prune()
+            limiter = self._limiters[key] = LoginLimiter()
+        return limiter
+
+    def _prune(self) -> None:
+        for key, limiter in list(self._limiters.items()):
+            if limiter.failures == 0 and limiter.retry_after() == 0:
+                del self._limiters[key]
+        # 仍超限说明这些账号都在锁定中或刚失败过，按首次出现顺序淘汰最早的一条。
+        while len(self._limiters) >= self.MAX_ENTRIES:
+            self._limiters.pop(next(iter(self._limiters)))

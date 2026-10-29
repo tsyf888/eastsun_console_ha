@@ -44,7 +44,8 @@ USERNAME_MAX = 32
 PASSWORD_MIN = 4
 PASSWORD_MAX = 128
 ACCOUNTS_MAX = 20  # 子账户最多 20 个（不含管理员）
-USERNAME_RE = re.compile(r"^[A-Za-z0-9_.@-]{2,32}$")
+# 账户名：允许中文、字母、数字以及 _ . @ -，2-32 位（\w 在 Python 中已包含中文）。
+USERNAME_RE = re.compile(r"^[\w.@-]{2,32}$")
 
 
 def _write_private(path: Path, text: str) -> None:
@@ -838,7 +839,7 @@ class Store:
         self.settings.token_encrypted = self._encrypt(token)
 
     def audit(self, event: str, ip: str, username: str = "", **detail: Any) -> None:
-        """审计日志：username 记录是哪个账户操作；service_call 即“操控设备记录”。"""
+        """审计日志：username 记录是哪个账户操作；service_call / scene_call 即“操控设备/场景记录”。"""
         entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "event": event, "ip": ip, "user": username, **detail}
         if self.audit_path.exists() and self.audit_path.stat().st_size > AUDIT_MAX_BYTES:
             os.replace(self.audit_path, self.audit_path.with_suffix(".log.1"))
@@ -847,9 +848,10 @@ class Store:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def recent_audit(self, limit: int = 500, event: str | None = None) -> list[dict[str, Any]]:
-        """读取审计日志。event 不为 None 时只返回该类型（如 service_call 只看设备操控记录）。"""
+        """读取审计日志。event 支持逗号分隔的多个类型（如 service_call,scene_call 只看操控记录）。"""
         if not self.audit_path.exists():
             return []
+        wanted = {part.strip() for part in event.split(",") if part.strip()} if event else None
         lines = self.audit_path.read_text(encoding="utf-8").splitlines()
         entries: list[dict[str, Any]] = []
         for line in reversed(lines):
@@ -857,7 +859,7 @@ class Store:
                 item = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if event is not None and item.get("event") != event:
+            if wanted is not None and item.get("event") not in wanted:
                 continue
             entries.append(item)
             if len(entries) >= limit:

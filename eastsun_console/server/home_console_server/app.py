@@ -29,7 +29,7 @@ from urllib.parse import urlsplit
 import aiohttp
 from aiohttp import WSMsgType, web
 
-from .auth import LoginLimiter, Sessions
+from .auth import AccountLimiters, Sessions
 from .automations import DOMAIN as AUTOMATION_DOMAIN, build_automations, demo_automations
 from .cameras import BOUNDARY as CAMERA_BOUNDARY, CameraStreamer
 from .discovery import SCENE_DOMAINS, build_catalogue, filtered, visible_ids
@@ -191,7 +191,7 @@ class ConsoleServer:
             self.store.save()
         # 会话持久化到 sessions.json：重启后浏览器复用 Cookie 免重新登录。
         self.sessions = Sessions(self.store.sessions_path)
-        self.limiter = LoginLimiter()
+        self.limiters = AccountLimiters()
         self.clients: set[web.WebSocketResponse] = set()
         self._tasks: set[asyncio.Task[None]] = set()
         # 设备延时关闭寄存器：entity_id → 到期时间（epoch 毫秒）。仅存内存，重启即清空；设备被其它方式关闭时立即作废。
@@ -835,8 +835,9 @@ class ConsoleServer:
                 await self.upstream.call_service(entity_id.split(".")[0], service, entity_id, data)
             except Exception as exc:  # HA 返回失败、超时或断线
                 error = str(exc) or exc.__class__.__name__
-        # service_call 即“操控设备记录”：记录哪个账户操作了什么设备。
-        self.store.audit("service_call", ip, username=username, entity=entity_id, service=service, data=data, ok=error is None, error=error)
+        # 情景模式按钮指向的是一键执行类实体，记录为“操控场景”；其余记录为“操控设备”。
+        event = "scene_call" if entity_id.split(".")[0] in SCENE_DOMAINS else "service_call"
+        self.store.audit(event, ip, username=username, entity=entity_id, service=service, data=data, ok=error is None, error=error)
         if not ws.closed:
             await ws.send_json({"type": "result", "id": request_id, "success": error is None, "error": error})
 
@@ -917,9 +918,6 @@ class ConsoleServer:
     async def login(self, request: web.Request) -> web.Response:
         """账号 + 密码登录；登录状态长期有效，只有主动退出才失效。"""
         ip = client_ip(request)
-        retry_after = self.limiter.retry_after()
-        if retry_after:
-            return web.json_response({"error": "尝试次数过多", "retryAfter": retry_after}, status=429)
         body = await read_json(request)
         username = str(body.get("username", "")).strip()
         password = str(body.get("password", ""))
@@ -928,14 +926,19 @@ class ConsoleServer:
             remember = True
         if not username or not password:
             return web.json_response({"error": "请输入账号和密码"}, status=400)
+        # 按账号独立限流：只锁定输错密码的这个用户名，不影响其他账号。
+        limiter = self.limiters.for_user(username)
+        retry_after = limiter.retry_after()
+        if retry_after:
+            return web.json_response({"error": "尝试次数过多", "retryAfter": retry_after}, status=429)
         account = self.store.verify_account(username, password)
         if not account:
-            locked = self.limiter.record_failure()
+            locked = limiter.record_failure()
             self.store.audit("login_failed", ip, username=username, locked_seconds=locked)
             if locked:
                 return web.json_response({"error": "尝试次数过多", "retryAfter": locked}, status=429)
-            return web.json_response({"error": "账号或密码不正确", "remaining": self.limiter.remaining_attempts()}, status=401)
-        self.limiter.record_success()
+            return web.json_response({"error": "账号或密码不正确", "remaining": limiter.remaining_attempts()}, status=401)
+        limiter.record_success()
         # 审计里标记是否来自 Ingress 侧边栏（便于区分入口），登录本身已是长期有效。
         self.store.audit("login", ip, username=account.username, temporary=_is_ingress_request(request))
         session_id = self.sessions.create(account.username, account.is_admin, remember=remember)
@@ -968,7 +971,7 @@ class ConsoleServer:
         new_username = str(body.get("username", "")).strip()
         new_password = str(body.get("password", ""))
         if not self.store.complete_setup(new_username, new_password):
-            return web.json_response({"error": "账户名需 2–32 位（字母数字 _ . @ -）或密码至少 4 位，且不能与他人重名"}, status=400)
+            return web.json_response({"error": "账户名需 2–32 位（中文、字母、数字或 _ . @ -）或密码至少 4 位，且不能与他人重名"}, status=400)
         # 旧 Cookie 失效（用户名变了）：重新签发并吊销该用户名下所有旧会话。
         self.sessions.revoke_user(session["username"])
         new_session = self.sessions.create(new_username, True, remember=True)
@@ -1012,7 +1015,7 @@ class ConsoleServer:
             return web.json_response({"error": "仅允许创建子账户"}, status=400)
         account = self.store.add_account(username, password, is_admin=False)
         if not account:
-            return web.json_response({"error": "账号需 2–32 位（字母数字 _ . @ -）且不重名，密码至少 4 位"}, status=400)
+            return web.json_response({"error": "账号需 2–32 位（中文、字母、数字或 _ . @ -）且不重名，密码至少 4 位"}, status=400)
         self.store.audit("account_created", client_ip(request), username=session["username"], target=account.username)
         return web.json_response({"ok": True, "account": account.public()})
 
@@ -1340,7 +1343,7 @@ class ConsoleServer:
         return web.json_response(self.store.layout)
 
     async def get_audit(self, request: web.Request) -> web.Response:
-        """读取操作记录。?event=service_call 只返回“操控设备记录”，可按事件类型过滤；最多返回 500 条。"""
+        """读取操作记录。?event=service_call,scene_call 只看“操控记录”，可用逗号分隔多个事件类型；最多返回 500 条。"""
         self._require_admin(request)
         event = request.query.get("event") or None
         try:
