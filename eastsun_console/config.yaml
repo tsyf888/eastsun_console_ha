@@ -1,5 +1,5 @@
 name: EastSun Console
-version: "1.1.18"
+version: "1.1.19"
 slug: eastsun_console
 description: 轻量家居控制台：房间设备卡片、温湿度、摄像头、天气、扫地机地图，内嵌于 Home Assistant 侧边栏，自动连接本机 HA，无需配置令牌。
 url: https://github.com/tsyf888/eastsun_console_ha
@@ -13,6 +13,7 @@ startup: application
 homeassistant_api: true
 ingress: true
 ingress_port: 8765
+ingress_stream: true        # 增加：如果加载项需要长连接或传输大文件
 panel_icon: mdi:view-dashboard-outline
 panel_title: EastSun Console
 # 允许非管理员（普通成员）也在侧边栏看到并打开该面板；默认 true 仅管理员可见。
@@ -23,3 +24,6 @@ ports_description:
   8765/tcp: 独立访问端口（可选；一般用侧边栏 Ingress 即可，无需开启）
 options: {}
 schema: {}
+
+# 数据存储目录：/mnt/data/supervisor/apps/data/xxx_eastsun_console/
+

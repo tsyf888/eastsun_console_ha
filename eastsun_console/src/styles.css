@@ -1486,10 +1486,15 @@ strong { font-weight: 600; }
 .account-row .small-button { flex: none; }
 @media (max-width: 600px) { .account-row small { display: none; } }
 
-/* 操作记录底部的分页信息与导出按钮：窄屏自动换行，按钮不撑宽。 */
+/* 操作记录上方（筛选之后）的分页信息与导出按钮：窄屏自动换行，按钮不撑宽。 */
 .audit-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .audit-pager__info { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
 .audit-pager .settings-actions { margin: 0; flex-wrap: wrap; }
+/* 分页按钮直接落在玻璃卡片上，默认 --glass-border 只有约 10% 不透明度，看起来像没有边框；
+   这里换成与旁边输入框一致的清晰描边。 */
+.audit-pager .small-button { border-color: var(--hairline-strong); background: var(--surface-2); }
+.audit-pager .small-button:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-3); }
+.audit-pager .small-button:disabled { opacity: .55; }
 .audit-pager__jump { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 12px; }
 .audit-pager__jump input { width: 68px; min-height: 36px; padding: 0 8px; text-align: center; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--bg); color: var(--text); font-size: 13px; }
 /* 自定义日期：日期框只需容下“年/月/日”即可，窄屏单列但不占满整行。 */

@@ -35,6 +35,7 @@ type Message = { tone: 'good' | 'error'; text: string } | null;
 
 const auditLabels: Record<string, string> = {
   login: '账户登录',
+  auto_login: '自动登录',
   login_failed: '密码错误',
   logout: '退出登录',
   setup_completed: '首跑引导完成',
@@ -123,6 +124,7 @@ function auditDetail(entry: AuditEntry, entityName: (id: string) => string): str
   }
   if (entry.event === 'filter_changed') return `${entry.mode === 'whitelist' ? '白名单' : '黑名单'}（黑名单 ${String(entry.blacklist)} 项，白名单 ${String(entry.whitelist)} 项）`;
   if (entry.event === 'settings_changed' && Array.isArray(entry.fields)) return entry.fields.join('、');
+  if (entry.event === 'auto_login') return '通过 HA 侧边栏身份自动进入';
   if (entry.event === 'login_failed' && entry.locked_seconds) return `锁定 ${String(entry.locked_seconds)} 秒`;
   return '';
 }

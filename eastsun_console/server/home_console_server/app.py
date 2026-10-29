@@ -232,6 +232,8 @@ class ConsoleServer:
         self.limiters = AccountLimiters()
         self.clients: set[web.WebSocketResponse] = set()
         self._tasks: set[asyncio.Task[None]] = set()
+        # 侧边栏自动登录的审计按“用户 + 日期”去重，一天每人只记一次，避免每次请求刷爆日志。
+        self._auto_login_seen: dict[str, str] = {}
         # 设备延时关闭寄存器：entity_id → 到期时间（epoch 毫秒）。仅存内存，重启即清空；设备被其它方式关闭时立即作废。
         self._timers: dict[str, int] = {}
         self._timer_task: asyncio.Task[None] | None = None
@@ -956,6 +958,8 @@ class ConsoleServer:
                 "firstRun": not self.store.setup_completed,
                 "setupCompleted": self.store.setup_completed,
             })
+        if session.get("auto"):
+            self._audit_auto_login(request, session["username"])
         return web.json_response({
             "authenticated": True,
             "ingress": ingress,
@@ -964,6 +968,14 @@ class ConsoleServer:
             "firstRun": not self.store.setup_completed and not session.get("auto"),
             "setupCompleted": self.store.setup_completed,
         })
+
+    def _audit_auto_login(self, request: web.Request, username: str) -> None:
+        """侧边栏自动登录按“用户 + 日期”去重：一天一人只记一次，重启后重新计。"""
+        today = time.strftime("%Y-%m-%d")
+        if self._auto_login_seen.get(username) == today:
+            return
+        self._auto_login_seen[username] = today
+        self.store.audit("auto_login", client_ip(request), username=username)
 
     async def login(self, request: web.Request) -> web.Response:
         """账号 + 密码登录；登录状态长期有效，只有主动退出才失效。"""
