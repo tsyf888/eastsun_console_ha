@@ -292,12 +292,19 @@ class Weather:
             sun_table = await self._open_meteo_sun(*coords)
         daily: list[dict[str, Any]] = []
         year = time.strftime("%Y")
-        for day in daily_raw[:7]:
+        today_str = time.strftime("%Y-%m-%d")
+        for day in daily_raw:
+            if len(daily) >= 7:
+                break
             date_md = str(day.get("fi", ""))       # "9/29"
             fx_date = ""
             if "/" in date_md:
                 m, d = date_md.split("/", 1)
                 fx_date = f"{year}-{int(m):02d}-{int(d):02d}"
+            # weixinfc 首项固定是“昨天”（fj 字段依次为昨天/今天/明天…），
+            # 跳过过去日期，保证 daily[0] 是今天且能匹配上 Open-Meteo 的日出日落表。
+            if fx_date and fx_date < today_str:
+                continue
             sr, ss = sun_table.get(fx_date, ("", ""))
             daily.append({
                 "fxDate": fx_date,

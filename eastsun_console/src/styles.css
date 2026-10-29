@@ -1777,9 +1777,10 @@ strong { font-weight: 600; }
   /* 手机主页：寄语与时间/日期/星期隐藏，只保留可点的农历一行；页头一行排布——沉浸/设置按钮最左、连接徽标随后、天气最右，不换行 */
   .hero--home .hero__brand { display: none; }
   .hero--home .hero__title { display: none; }
-  .hero--home .hero__almanac { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 0; min-width: 0; color: var(--text-2); font-size: 12.5px; }
-  .hero--home .hero__almanac .hero__subline-button { display: block; max-width: 100%; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-  .hero--home .hero__almanac .hero__sun { margin-left: 0; }
+  /* 农历与日出日落同一行：农历超出时省略号截断，日出日落始终完整靠右 */
+  .hero--home .hero__almanac { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 0; min-width: 0; color: var(--text-2); font-size: 12.5px; }
+  .hero--home .hero__almanac .hero__subline-button { flex: 1 1 auto; display: block; min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+  .hero--home .hero__almanac .hero__sun { flex-shrink: 0; margin-left: 0; }
   .hero--home .hero__top { justify-content: flex-start; gap: 6px; }
   .hero--home .hero__top .hero__actions { gap: 6px; }
   .hero--home .hero__top .hero__actions .icon-button { order: -1; }
