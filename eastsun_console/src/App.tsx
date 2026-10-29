@@ -60,7 +60,7 @@ function OccupancyBadge({ occupied }: { occupied: boolean }) {
 function App() {
   // 账户系统：未登录显示登录页，已登录显示主界面；firstRun=true 时管理员需到设置改账号密码。
   // HA 侧边栏 Ingress 访客（me.ingress=true 且无会话）免登录进入主界面，但只能查看状态（visitor=true）。
-  const [auth, setAuth] = useState<{ loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean }>(
+  const [auth, setAuth] = useState<{ loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean; auto?: boolean }; firstRun: boolean }>(
     { loading: true, authenticated: false, ingress: false, visitor: false, firstRun: false },
   );
   // 首跑管理员登录后直接进入「管理员修改」；用户取消后才进入主界面，仍可从 设置→安全 再次调起。
@@ -102,7 +102,7 @@ function App() {
 }
 
 interface ConsoleProps {
-  authenticated: { loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean }; firstRun: boolean };
+  authenticated: { loading: boolean; authenticated: boolean; ingress: boolean; visitor: boolean; user?: { username: string; isAdmin: boolean; auto?: boolean }; firstRun: boolean };
   onLogout: () => void;
   onAuthenticated: () => void;
   onOpenSetup: () => void;

@@ -86,7 +86,8 @@ export interface AccountInfo {
 /** /api/admin/me 返回值：当前登录账户 + 首跑引导状态。 */
 export interface MeResponse {
   authenticated: boolean;
-  user?: { username: string; isAdmin: boolean };
+  /** auto=true 表示由 HA 侧边栏的已认证用户自动登录（没有控制台 Cookie 会话）。 */
+  user?: { username: string; isAdmin: boolean; auto?: boolean };
   /** firstRun=true 表示管理员尚未完成首跑引导（admin/admin 仍是默认值）。 */
   firstRun?: boolean;
   setupCompleted?: boolean;

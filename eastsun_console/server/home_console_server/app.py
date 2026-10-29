@@ -76,10 +76,24 @@ def _cookie_attrs(request: web.Request) -> dict[str, Any]:
 # 此头也无法绕过账号登录（加项的 8765 端口默认不映射宿主机，外部只能走 Ingress）。
 INGRESS_HEADER = "X-Ingress-Path"
 INGRESS_VISITOR = {"username": "侧边栏访客", "isAdmin": False, "remember": True, "ingress": True}
+# 侧边栏自动登录的管理员名单：只有这些 HA 用户名按管理员放行，其余一律按普通成员（可控制、不可改设置）。
+INGRESS_ADMIN_USERS = {"西子艺尚", "管理员"}
 
 
 def _is_ingress_request(request: web.Request) -> bool:
     return bool(os.environ.get("SUPERVISOR_TOKEN")) and bool(request.headers.get(INGRESS_HEADER))
+
+
+def _ingress_user(request: web.Request) -> str:
+    """HA 侧边栏请求里已认证的 HA 用户名；非 Ingress 或没带用户信息时返回空串。
+
+    Supervisor 会把 X-Remote-User-Name / X-Remote-User-Display-Name 注入到侧边栏请求，
+    这些请求在到达加载项之前已经过 HA 自身的登录认证。用它自动登录可以避免内外网
+    两个不同域名各登录一次（Cookie 无法跨域共享）。
+    """
+    if not _is_ingress_request(request):
+        return ""
+    return (request.headers.get("X-Remote-User-Display-Name") or request.headers.get("X-Remote-User-Name") or "").strip()
 
 
 # ---------- 服务白名单：只允许这些服务及参数，目标必须是当前页面可见的实体 ----------
@@ -871,8 +885,20 @@ class ConsoleServer:
     # ---------- 管理接口 ----------
 
     def _current_session(self, request: web.Request) -> dict[str, Any] | None:
-        """读取当前会话；None 表示未登录或会话已过期。"""
-        return self.sessions.get(request.cookies.get(COOKIE))
+        """读取当前会话；None 表示未登录。
+
+        没有 Cookie 会话、但请求来自 HA 侧边栏（Ingress）且带有 HA 已认证用户时，
+        自动按管理员放行——内外网两个域名都无需再登录控制台。
+        """
+        session = self.sessions.get(request.cookies.get(COOKIE))
+        if session:
+            return session
+        ha_user = _ingress_user(request)
+        if ha_user:
+            # 名单里可以是 HA 登录用户名，也可以是显示名称，任一匹配即按管理员放行。
+            names = {ha_user, (request.headers.get("X-Remote-User-Name") or "").strip()}
+            return {"username": ha_user, "isAdmin": bool(names & INGRESS_ADMIN_USERS), "remember": True, "ingress": True, "auto": True}
+        return None
 
     def _require_login(self, request: web.Request) -> dict[str, Any]:
         """要求任意已登录账户；返回 {username, isAdmin, remember}。
@@ -910,8 +936,9 @@ class ConsoleServer:
         return web.json_response({
             "authenticated": True,
             "ingress": ingress,
-            "user": {"username": session["username"], "isAdmin": session["isAdmin"]},
-            "firstRun": not self.store.setup_completed,
+            "user": {"username": session["username"], "isAdmin": session["isAdmin"], "auto": bool(session.get("auto"))},
+            # 自动登录（HA 身份）时不弹首跑引导：账户体系用于直连端口的场景，不强加给侧边栏用户。
+            "firstRun": not self.store.setup_completed and not session.get("auto"),
             "setupCompleted": self.store.setup_completed,
         })
 

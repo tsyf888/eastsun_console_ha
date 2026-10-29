@@ -1489,7 +1489,15 @@ strong { font-weight: 600; }
 /* 操作记录底部的分页信息与导出按钮：窄屏自动换行，按钮不撑宽。 */
 .audit-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
 .audit-pager__info { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
-.audit-pager .settings-actions { margin: 0; }
+.audit-pager .settings-actions { margin: 0; flex-wrap: wrap; }
+.audit-pager__jump { display: inline-flex; align-items: center; gap: 6px; color: var(--text-3); font-size: 12px; }
+.audit-pager__jump input { width: 68px; min-height: 36px; padding: 0 8px; text-align: center; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--bg); color: var(--text); font-size: 13px; }
+/* 自定义日期：日期框只需容下“年/月/日”即可，窄屏单列但不占满整行。 */
+.audit-dates input[type="date"] { min-width: 0; font-variant-numeric: tabular-nums; }
+@media (max-width: 600px) {
+  .audit-dates { grid-template-columns: minmax(0, 1fr); }
+  .audit-dates .settings-field { max-width: 220px; }
+}
 
 .toast { position: fixed; right: 0; bottom: 24px; left: 0; z-index: 80; width: fit-content; max-width: min(520px, calc(100vw - 32px)); margin: 0 auto; padding: 12px 18px; border: 1px solid rgba(255, 106, 92, .4); border-radius: var(--radius-sm); background: var(--toast); color: var(--alert-text); font-size: 13.5px; box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .8); animation: pop-in .24s var(--ease) both; cursor: pointer; }
 

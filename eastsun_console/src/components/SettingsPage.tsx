@@ -16,7 +16,7 @@ import { EntityFilter } from './EntityFilter';
 interface SettingsPageProps {
   status: ServerStatus | null;
   /** 当前登录账户；未登录时为 undefined（理论上不会进入此页）。 */
-  user?: { username: string; isAdmin: boolean };
+  user?: { username: string; isAdmin: boolean; auto?: boolean };
   /** 是否从 HA 侧边栏 Ingress 进入（访客免登录，设置时需验证管理员）。 */
   ingress: boolean;
   /** 是否处于首跑引导（管理员尚未修改默认账号密码）。 */
@@ -213,6 +213,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   const [auditFrom, setAuditFrom] = useState('');
   const [auditTo, setAuditTo] = useState('');
   const [auditExporting, setAuditExporting] = useState(false);
+  const [auditJump, setAuditJump] = useState('');
   const [auditMessage, setAuditMessage] = useState<Message>(null);
   const [custom, setCustom] = useState<CustomConfig | null>(null);
   const [discovered, setDiscovered] = useState<DiscoveredEntities | null>(null);
@@ -264,6 +265,14 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
   /** 操作记录总页数。 */
   const auditPages = Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE));
+
+  /** 跳转到输入框指定的页（自动夹在 1 ~ 总页数 之间）。 */
+  function jumpAuditPage() {
+    const target = Math.floor(Number(auditJump));
+    setAuditJump('');
+    if (!Number.isFinite(target)) return;
+    loadAudit(Math.min(auditPages, Math.max(1, target)));
+  }
 
   /** 实体 id → 显示名：优先设置里的改名，其次自动发现的名字；前面带上所在房间，找不到时保留 id。 */
   const entityName = useMemo(() => {
@@ -881,7 +890,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
               </div>
             </div>
             {auditRange === 'custom' && (
-              <div className="settings-field-row">
+              <div className="settings-field-row audit-dates">
                 <label className="settings-field">
                   <span>开始日期</span>
                   <input type="date" value={auditFrom} max={auditTo || undefined} onChange={(event) => { setAuditFrom(event.target.value); loadAudit(1, { from: event.target.value }); }} />
@@ -900,6 +909,23 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
                 ))}
               </div>
             </div>
+            <div className="audit-pager">
+              <span className="audit-pager__info">共 {auditTotal} 条 · 每页 {AUDIT_PAGE_SIZE} 条 · 第 {auditPage} / {auditPages} 页</span>
+              <div className="settings-actions audit-pager__actions">
+                <button type="button" className="small-button" disabled={auditPage <= 1} onClick={() => loadAudit(1)}>首页</button>
+                <button type="button" className="small-button" disabled={auditPage <= 1} onClick={() => loadAudit(auditPage - 1)}>上一页</button>
+                <button type="button" className="small-button" disabled={auditPage >= auditPages} onClick={() => loadAudit(auditPage + 1)}>下一页</button>
+                <button type="button" className="small-button" disabled={auditPage >= auditPages} onClick={() => loadAudit(auditPages)}>尾页</button>
+                <label className="audit-pager__jump">
+                  <span>跳至</span>
+                  <input type="number" min={1} max={auditPages} inputMode="numeric" value={auditJump} placeholder={String(auditPage)} onChange={(event) => setAuditJump(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); jumpAuditPage(); } }} aria-label="跳转到指定页" />
+                  <span>页</span>
+                  <button type="button" className="small-button" onClick={jumpAuditPage} disabled={!auditJump}>跳转</button>
+                </label>
+                <button type="button" className="small-button" disabled={auditExporting || auditTotal === 0} onClick={exportAudit}>{auditExporting ? '导出中…' : '导出 CSV'}</button>
+              </div>
+            </div>
+            <FormMessage message={auditMessage} />
             {audit.length === 0 ? <p className="settings-message">该范围内暂无记录</p> : (
               <ul className="settings-audit">
                 {audit.map((entry, index) => {
@@ -918,15 +944,6 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
                 })}
               </ul>
             )}
-            <div className="audit-pager">
-              <span className="audit-pager__info">共 {auditTotal} 条 · 每页 {AUDIT_PAGE_SIZE} 条 · 第 {auditPage} / {auditPages} 页</span>
-              <div className="settings-actions">
-                <button type="button" className="small-button" disabled={auditPage <= 1} onClick={() => loadAudit(auditPage - 1)}>上一页</button>
-                <button type="button" className="small-button" disabled={auditPage >= auditPages} onClick={() => loadAudit(auditPage + 1)}>下一页</button>
-                <button type="button" className="small-button" disabled={auditExporting || auditTotal === 0} onClick={exportAudit}>{auditExporting ? '导出中…' : '导出 CSV'}</button>
-              </div>
-            </div>
-            <FormMessage message={auditMessage} />
           </section>
         )}
       </div>
@@ -936,7 +953,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
 /** 「登录」板块：管理员显示账户与退出；非管理员（含侧边栏免登录访客）在此验证管理员账号以解锁设置。 */
 function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
-  user?: { username: string; isAdmin: boolean };
+  user?: { username: string; isAdmin: boolean; auto?: boolean };
   ingress: boolean;
   onLogout: () => void;
   onAuthenticated: () => void;
@@ -946,6 +963,8 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
   // ingress 表示"请求来自 HA 侧边栏入口"（登录后仍为 true）；
   // 纯访客 = Ingress 入口 + 还没登录。身份显示和只读判断要看这个，不能只看 ingress。
   const isPureVisitor = ingress && !user;
+  // 侧边栏自动登录的普通成员：身份来自 HA 用户名，但不是内置管理员名单里的人。
+  const autoMember = Boolean(user?.auto);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -969,6 +988,19 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
   }
 
   if (isAdmin) {
+    // HA 侧边栏自动登录：身份来自 HA 已登录用户，换域名（内外网）也无需重新登录，因此不提供“退出登录”。
+    if (user?.auto) {
+      return (
+        <section className="settings-card">
+          <div className="settings-card__heading"><span className="tile__chip"><ShieldCheck size={20} /></span><div><h3>登录</h3><p>当前身份来自 Home Assistant 的已登录账户，内外网访问都会自动登录，无需在控制台重复输入账号密码。</p></div></div>
+          <div className="settings-row">
+            <span>账户</span>
+            <strong>{user.username}</strong>
+            <small>管理员 · 自动登录</small>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="settings-card">
         <div className="settings-card__heading"><span className="tile__chip"><LogOut size={20} /></span><div><h3>登录</h3><p>当前已登录账户；点「退出登录」后回到登录页，下次进入需重新输入账号密码。</p></div></div>
@@ -989,13 +1021,15 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
       <div className="settings-card__heading"><span className="tile__chip"><ShieldCheck size={20} /></span><div>
         <h3>{ingress ? '登录账户' : '账户升级'}</h3>
         <p>{ingress
-          ? '侧边栏访问已由 Home Assistant 完成登录认证，当前为只读访客。输入任意有效账号密码登录后可控制设备；使用管理员账号可同时解锁设置。'
+          ? (autoMember
+            ? '当前身份来自 Home Assistant 的已登录账户，为普通成员：可控制与查看设备，不能修改设置。如需修改设置，请输入管理员账号。'
+            : '侧边栏访问已由 Home Assistant 完成登录认证，当前为只读访客。输入任意有效账号密码登录后可控制设备；使用管理员账号可同时解锁设置。')
           : '当前账户没有设置权限；输入管理员账号验证后可修改设置。'}</p>
       </div></div>
       <div className="settings-row">
         <span>当前身份</span>
         <strong>{isPureVisitor ? '侧边栏访客' : (user?.username ?? '子账户')}</strong>
-        <small>{isPureVisitor ? '只读' : (isAdmin ? '管理员' : '子账户')}</small>
+        <small>{isPureVisitor ? '只读' : isAdmin ? '管理员' : autoMember ? '普通成员 · 自动登录' : '子账户'}</small>
       </div>
       <form onSubmit={verifyAdmin}>
         <label className="settings-field" htmlFor={`${formId}-admin-username`}>
@@ -1013,7 +1047,7 @@ function LoginSection({ user, ingress, onLogout, onAuthenticated }: {
           <button type="submit" className="small-button small-button--selected" disabled={checking}>
             <ShieldCheck size={15} />{checking ? '正在验证…' : (ingress ? '登录' : '验证管理员')}
           </button>
-          {!isPureVisitor && (
+          {!isPureVisitor && !autoMember && (
             <button type="button" className="small-button small-button--danger" onClick={onLogout} disabled={checking}><LogOut size={15} />退出登录</button>
           )}
         </div>
