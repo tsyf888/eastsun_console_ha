@@ -50,6 +50,8 @@ export interface PersonConfig {
 
 export interface AuditEntry {
   time: string;
+  /** 写入时刻的 Unix 秒（新记录才有；旧记录用 time 字符串兜底）。 */
+  ts?: number;
   event: string;
   ip: string;
   /** 操作账户名（账户系统上线后由后端写入；旧记录可能为空）。 */
@@ -179,15 +181,34 @@ export async function uploadPeopleImage(file: File): Promise<{ image: string; ur
   }
   return response.json();
 }
-/**
- * 读取操作记录。
- * @param limit 条数
- * @param event 事件类型过滤，可用逗号分隔多个；传 'service_call,scene_call' 只看“操控记录”。
- */
-export const getAudit = (limit = 500, event?: string) =>
-  request<AuditEntry[]>(`/api/admin/audit?limit=${limit}${event ? `&event=${encodeURIComponent(event)}` : ''}`);
-/** “操控记录”：设备与场景两种操控事件，按账户名区分谁操作了什么。 */
-export const getDeviceAudit = (limit = 500) => getAudit(limit, 'service_call,scene_call');
+/** 操作记录分页查询参数。 */
+export interface AuditQuery {
+  page?: number;
+  pageSize?: number;
+  /** 事件类型，可用逗号分隔多个；传 'service_call,scene_call' 只看“操控记录”。 */
+  event?: string;
+  /** 起始时间（Unix 秒，含）。 */
+  from?: number;
+  /** 结束时间（Unix 秒，不含）。 */
+  to?: number;
+}
+
+/** 分页结果：items 为当前页，total 为匹配总数。 */
+export interface AuditPage {
+  items: AuditEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 分页读取操作记录；默认每页 50 条。 */
+export const getAudit = (query: AuditQuery = {}) => {
+  const params = new URLSearchParams({ page: String(query.page ?? 1), pageSize: String(query.pageSize ?? 50) });
+  if (query.event) params.set('event', query.event);
+  if (query.from !== undefined) params.set('from', String(query.from));
+  if (query.to !== undefined) params.set('to', String(query.to));
+  return request<AuditPage>(`/api/admin/audit?${params.toString()}`);
+};
 export const putLayout = (layout: ServerLayout) => request<ServerLayout>('/api/layout', 'PUT', layout);
 export const getEntities = () => request<DiscoveredEntities>('/api/admin/entities');
 export const putFilter = (filter: Partial<EntityFilter>) => request<DiscoveredEntities>('/api/admin/filter', 'PUT', filter);

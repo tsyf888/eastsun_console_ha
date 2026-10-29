@@ -127,6 +127,48 @@ function auditDetail(entry: AuditEntry, entityName: (id: string) => string): str
   return '';
 }
 
+/** 操作记录的日期范围。 */
+type AuditRange = 'all' | 'today' | '7d' | '30d' | 'custom';
+
+/** 操作记录每页条数。 */
+const AUDIT_PAGE_SIZE = 50;
+
+/** 本地时区“今天往前 daysAgo 天的零点”对应的 Unix 秒（daysAgo 为负即往后）。 */
+function dayStart(daysAgo = 0): number {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() - daysAgo);
+  return Math.floor(date.getTime() / 1000);
+}
+
+/** 日期区间的本地零点，转成 Unix 秒；结束日期按“次日零点”作为开区间上界。 */
+function dateStart(day: string): number | undefined {
+  return day ? Math.floor(new Date(`${day}T00:00:00`).getTime() / 1000) : undefined;
+}
+
+/** 按日期范围算查询区间；全部记录不限制时间。 */
+function auditWindow(range: AuditRange, from: string, to: string): { from?: number; to?: number } {
+  if (range === 'today') return { from: dayStart(0), to: dayStart(-1) };
+  if (range === '7d') return { from: dayStart(6), to: dayStart(-1) };
+  if (range === '30d') return { from: dayStart(29), to: dayStart(-1) };
+  if (range === 'custom') {
+    const start = dateStart(from);
+    const end = dateStart(to);
+    return { from: start, to: end === undefined ? undefined : end + 86400 };
+  }
+  return {};
+}
+
+/** 记录时间：优先按 ts 用浏览器时区显示；旧记录没有 ts，退回原始字符串。 */
+function auditTime(entry: AuditEntry): string {
+  if (typeof entry.ts === 'number' && entry.ts > 0) {
+    const date = new Date(entry.ts * 1000);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+  return entry.time.replace('T', ' ').slice(0, 16);
+}
+
 /** 管理设置；账户系统下任何已登录用户进入，非管理员仅可见「登录」板块，管理员可见全部板块。 */
 export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuthenticated, onOpenSetup, onExpired }: SettingsPageProps) {
   const formId = useId();
@@ -156,24 +198,72 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   const [passwordMessage, setPasswordMessage] = useState<Message>(null);
   // 子账户管理。
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
+  // 子账户删除采用行内二次确认（3 秒内点“确认删除”才执行），不弹系统对话框。
+  const [confirmAccountId, setConfirmAccountId] = useState<string | null>(null);
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountPassword, setNewAccountPassword] = useState('');
   const [accountMessage, setAccountMessage] = useState<Message>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState(0);
+  const [auditPage, setAuditPage] = useState(1);
   // 操作记录切换：全部 / 仅操控设备与场景记录。
   const [auditFilter, setAuditFilter] = useState<'all' | 'control'>('all');
+  // 日期范围：全部 / 今天 / 近 7 天 / 近 30 天 / 自定义。
+  const [auditRange, setAuditRange] = useState<AuditRange>('all');
+  const [auditFrom, setAuditFrom] = useState('');
+  const [auditTo, setAuditTo] = useState('');
+  const [auditExporting, setAuditExporting] = useState(false);
+  const [auditMessage, setAuditMessage] = useState<Message>(null);
   const [custom, setCustom] = useState<CustomConfig | null>(null);
   const [discovered, setDiscovered] = useState<DiscoveredEntities | null>(null);
   const [entityInput, setEntityInput] = useState('');
   const [allOffMessage, setAllOffMessage] = useState<Message>(null);
   const [tab, setTab] = useState<Tab>(isAdmin ? 'connection' : 'login');
 
-  // 刷新操作记录：按当前过滤拉取。
-  function refreshAudit(filter: 'all' | 'control' = auditFilter) {
-    getAudit(500, filter === 'control' ? 'service_call,scene_call' : undefined)
-      .then((entries) => setAudit(entries))
+  // 拉取操作记录：默认第 1 页，按当前类型与日期范围查询；options 用于状态刚变更时立即采用新值。
+  function loadAudit(page = 1, options: { filter?: 'all' | 'control'; range?: AuditRange; from?: string; to?: string } = {}) {
+    const filter = options.filter ?? auditFilter;
+    const range = options.range ?? auditRange;
+    const span = auditWindow(range, options.from ?? auditFrom, options.to ?? auditTo);
+    getAudit({ page, pageSize: AUDIT_PAGE_SIZE, event: filter === 'control' ? 'service_call,scene_call' : undefined, ...span })
+      .then((result) => { setAudit(result.items); setAuditTotal(result.total); setAuditPage(result.page); setAuditMessage(null); })
       .catch(() => undefined);
   }
+
+  /** 导出当前筛选下的全部记录为 CSV（带 BOM，Excel 直接打开不乱码）。 */
+  async function exportAudit() {
+    setAuditExporting(true);
+    setAuditMessage(null);
+    try {
+      const span = auditWindow(auditRange, auditFrom, auditTo);
+      const rows: AuditEntry[] = [];
+      for (let page = 1; ; page += 1) {
+        const result = await getAudit({ page, pageSize: 500, event: auditFilter === 'control' ? 'service_call,scene_call' : undefined, ...span });
+        rows.push(...result.items);
+        if (rows.length >= result.total || result.items.length === 0) break;
+      }
+      const field = (value: string) => `"${value.replace(/"/g, '""')}"`;
+      const lines = [['时间', '类型', '账户', 'IP', '详情'].map(field).join(',')];
+      for (const entry of rows) {
+        lines.push([auditTime(entry), auditLabels[entry.event] ?? entry.event, entry.user ?? '', String(entry.ip ?? ''), auditDetail(entry, entityName)].map(field).join(','));
+      }
+      const url = URL.createObjectURL(new Blob([`\ufeff${lines.join('\r\n')}\r\n`], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `操作记录-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setAuditMessage({ tone: 'good', text: `已导出 ${rows.length} 条记录` });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) onExpired(error.message);
+      else setAuditMessage({ tone: 'error', text: error instanceof Error ? error.message : '导出失败' });
+    } finally {
+      setAuditExporting(false);
+    }
+  }
+
+  /** 操作记录总页数。 */
+  const auditPages = Math.max(1, Math.ceil(auditTotal / AUDIT_PAGE_SIZE));
 
   /** 实体 id → 显示名：优先设置里的改名，其次自动发现的名字；前面带上所在房间，找不到时保留 id。 */
   const entityName = useMemo(() => {
@@ -203,7 +293,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       getEntities().then((entities) => { if (active) setDiscovered(entities); }).catch(() => undefined);
       getAccounts().then((data) => { if (active) setAccounts(data.accounts); }).catch(() => undefined);
     }
-    refreshAudit('all');
+    loadAudit();
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 依赖 isAdmin：页面内验证管理员后重新拉取设置数据
   }, [isAdmin]);
@@ -234,7 +324,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       const next = await updateSettings(patch);
       setSettings(next);
       show({ tone: 'good', text: success });
-      refreshAudit();
+      loadAudit();
       return true;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onExpired(error.message);
@@ -292,7 +382,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       setNewPassword('');
       setConfirmPassword('');
       setPasswordMessage({ tone: 'good', text: '密码已更新' });
-      refreshAudit();
+      loadAudit();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onExpired(error.message);
       else setPasswordMessage({ tone: 'error', text: error instanceof Error ? error.message : '修改失败' });
@@ -313,7 +403,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       setNewAccountName('');
       setNewAccountPassword('');
       setAccountMessage({ tone: 'good', text: `子账户「${username}」已创建` });
-      refreshAudit();
+      loadAudit();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onExpired(error.message);
       else setAccountMessage({ tone: 'error', text: error instanceof Error ? error.message : '创建失败' });
@@ -321,13 +411,12 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   }
 
   async function removeAccount(account: AccountInfo) {
-    if (!confirm(`确认删除子账户「${account.username}」？`)) return;
     try {
       await deleteAccount(account.id);
       const data = await getAccounts();
       setAccounts(data.accounts);
       setAccountMessage({ tone: 'good', text: `子账户「${account.username}」已删除` });
-      refreshAudit();
+      loadAudit();
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) onExpired(error.message);
       else setAccountMessage({ tone: 'error', text: error instanceof Error ? error.message : '删除失败' });
@@ -390,7 +479,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   /** 切换标签；打开「记录」时按当前过滤重新拉取，保证看到最新记录。 */
   function selectTab(next: Tab) {
     setTab(next);
-    if (next === 'audit') refreshAudit();
+    if (next === 'audit') loadAudit();
   }
 
   /** 标签栏方向键切换（WAI-ARIA 标签页模式）。 */
@@ -749,12 +838,14 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
           <section className="settings-card">
             <div className="settings-card__heading"><span className="tile__chip"><UserPlus size={20} /></span><div><h3>子账户</h3><p>子账户可登录控制台并操控设备，但不能进入除「登录」外的设置板块；任何账户操作设备的记录都会写入「记录」板块。</p></div></div>
             {accounts.filter((a) => !a.isAdmin).length > 0 && (
-              <ul className="settings-audit">
+              <ul className="account-list">
                 {accounts.filter((a) => !a.isAdmin).map((account) => (
-                  <li key={account.id}>
+                  <li key={account.id} className={confirmAccountId === account.id ? 'account-row account-row--confirm' : 'account-row'}>
                     <strong>{account.username}</strong>
                     <small>创建于 {account.createdAt.replace('T', ' ').slice(0, 16)}</small>
-                    <button type="button" className="icon-button" onClick={() => removeAccount(account)} aria-label={`删除子账户 ${account.username}`}><Trash2 size={14} /></button>
+                    {confirmAccountId === account.id
+                      ? <button type="button" className="small-button small-button--danger" onClick={() => removeAccount(account)}>确认删除</button>
+                      : <button type="button" className="icon-button" onClick={() => { setConfirmAccountId(account.id); window.setTimeout(() => setConfirmAccountId((current) => (current === account.id ? null : current)), 3000); }} aria-label={`删除子账户 ${account.username}`}><Trash2 size={14} /></button>}
                   </li>
                 ))}
               </ul>
@@ -762,7 +853,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             <form className="settings-field-row" onSubmit={saveNewAccount}>
               <label className="settings-field">
                 <span>账户名</span>
-                <input type="text" autoComplete="username" maxLength={32} placeholder="如 爸爸" value={newAccountName} onChange={(event) => { setNewAccountName(event.target.value); setAccountMessage(null); }} />
+                <input type="text" autoComplete="username" maxLength={32} placeholder="如 张三" value={newAccountName} onChange={(event) => { setNewAccountName(event.target.value); setAccountMessage(null); }} />
               </label>
               <label className="settings-field">
                 <span>密码</span>
@@ -780,23 +871,43 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
         {tab === 'audit' && (
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>最近 500 条登录、设置、布局与设备、场景控制记录；按账户区分，标明是谁操作了什么；不含令牌和密码。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>按日期查询、分页查看登录、设置、布局与设备、场景控制记录；按账户区分，标明是谁操作了什么，可导出 CSV；不含令牌和密码。</p></div></div>
             <div className="settings-row">
-              <span id={`${formId}-audit-filter`}>范围</span>
-              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-filter`}>
-                {([['all', '全部记录'], ['control', '仅操控记录']] as const).map(([value, label]) => (
-                  <button key={value} type="button" role="radio" aria-checked={auditFilter === value} onClick={() => { setAuditFilter(value); refreshAudit(value); }}>{label}</button>
+              <span id={`${formId}-audit-range`}>日期</span>
+              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-range`}>
+                {([['all', '全部'], ['today', '今天'], ['7d', '近 7 天'], ['30d', '近 30 天'], ['custom', '自定义']] as const).map(([value, label]) => (
+                  <button key={value} type="button" role="radio" aria-checked={auditRange === value} onClick={() => { setAuditRange(value); loadAudit(1, { range: value }); }}>{label}</button>
                 ))}
               </div>
             </div>
-            {audit.length === 0 ? <p className="settings-message">暂无记录</p> : (
+            {auditRange === 'custom' && (
+              <div className="settings-field-row">
+                <label className="settings-field">
+                  <span>开始日期</span>
+                  <input type="date" value={auditFrom} max={auditTo || undefined} onChange={(event) => { setAuditFrom(event.target.value); loadAudit(1, { from: event.target.value }); }} />
+                </label>
+                <label className="settings-field">
+                  <span>结束日期</span>
+                  <input type="date" value={auditTo} min={auditFrom || undefined} onChange={(event) => { setAuditTo(event.target.value); loadAudit(1, { to: event.target.value }); }} />
+                </label>
+              </div>
+            )}
+            <div className="settings-row">
+              <span id={`${formId}-audit-filter`}>类型</span>
+              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-filter`}>
+                {([['all', '全部记录'], ['control', '仅操控记录']] as const).map(([value, label]) => (
+                  <button key={value} type="button" role="radio" aria-checked={auditFilter === value} onClick={() => { setAuditFilter(value); loadAudit(1, { filter: value }); }}>{label}</button>
+                ))}
+              </div>
+            </div>
+            {audit.length === 0 ? <p className="settings-message">该范围内暂无记录</p> : (
               <ul className="settings-audit">
                 {audit.map((entry, index) => {
                   const detail = auditDetail(entry, entityName);
                   return (
                     <li key={`${entry.time}-${index}`} className={entry.event === 'login_failed' || entry.ok === false ? 'settings-audit__row--warn' : undefined}>
                       <div className="settings-audit__head">
-                        <time>{entry.time.replace('T', ' ').slice(5, 19)}</time>
+                        <time>{auditTime(entry)}</time>
                         <strong>{auditLabels[entry.event] ?? entry.event}</strong>
                         <span className="settings-audit__user">{entry.user || '—'}</span>
                         <small>{entry.ip}</small>
@@ -807,6 +918,15 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
                 })}
               </ul>
             )}
+            <div className="audit-pager">
+              <span className="audit-pager__info">共 {auditTotal} 条 · 每页 {AUDIT_PAGE_SIZE} 条 · 第 {auditPage} / {auditPages} 页</span>
+              <div className="settings-actions">
+                <button type="button" className="small-button" disabled={auditPage <= 1} onClick={() => loadAudit(auditPage - 1)}>上一页</button>
+                <button type="button" className="small-button" disabled={auditPage >= auditPages} onClick={() => loadAudit(auditPage + 1)}>下一页</button>
+                <button type="button" className="small-button" disabled={auditExporting || auditTotal === 0} onClick={exportAudit}>{auditExporting ? '导出中…' : '导出 CSV'}</button>
+              </div>
+            </div>
+            <FormMessage message={auditMessage} />
           </section>
         )}
       </div>

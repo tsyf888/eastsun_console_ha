@@ -17,6 +17,7 @@ import re
 import secrets
 import time
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -839,29 +840,62 @@ class Store:
         self.settings.token_encrypted = self._encrypt(token)
 
     def audit(self, event: str, ip: str, username: str = "", **detail: Any) -> None:
-        """审计日志：username 记录是哪个账户操作；service_call / scene_call 即“操控设备/场景记录”。"""
-        entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "event": event, "ip": ip, "user": username, **detail}
+        """审计日志：username 记录是哪个账户操作；service_call / scene_call 即“操控设备/场景记录”。
+
+        time 是写入时的服务端本地时间字符串（兼容旧记录），ts 是同一时刻的 Unix 时间戳，
+        前端按浏览器时区显示与按日期筛选都以 ts 为准（容器时区通常是 UTC）。
+        """
+        entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "ts": round(time.time(), 3), "event": event, "ip": ip, "user": username, **detail}
         if self.audit_path.exists() and self.audit_path.stat().st_size > AUDIT_MAX_BYTES:
             os.replace(self.audit_path, self.audit_path.with_suffix(".log.1"))
         fd = os.open(self.audit_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
         with os.fdopen(fd, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
-    def recent_audit(self, limit: int = 500, event: str | None = None) -> list[dict[str, Any]]:
-        """读取审计日志。event 支持逗号分隔的多个类型（如 service_call,scene_call 只看操控记录）。"""
+    @staticmethod
+    def _audit_ts(item: dict[str, Any]) -> float:
+        """取一条记录的时间戳；旧记录没有 ts，就解析 time 字符串（带时区偏移）。"""
+        ts = item.get("ts")
+        if isinstance(ts, (int, float)):
+            return float(ts)
+        try:
+            return datetime.strptime(str(item.get("time", "")), "%Y-%m-%dT%H:%M:%S%z").timestamp()
+        except ValueError:
+            return 0.0
+
+    def query_audit(
+        self,
+        *,
+        page_size: int = 50,
+        page: int = 1,
+        event: str | None = None,
+        start_ts: float | None = None,
+        end_ts: float | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """按时间倒序分页查询审计日志，返回 (当前页条目, 匹配总数)。
+
+        event 支持逗号分隔的多个类型（如 service_call,scene_call 只看操控记录）；
+        start_ts / end_ts 为 Unix 时间戳区间（左闭右开），用于按日期筛选。
+        审计文件超过 1MB 会滚动，整体读取开销很小。
+        """
         if not self.audit_path.exists():
-            return []
+            return [], 0
         wanted = {part.strip() for part in event.split(",") if part.strip()} if event else None
-        lines = self.audit_path.read_text(encoding="utf-8").splitlines()
-        entries: list[dict[str, Any]] = []
-        for line in reversed(lines):
+        matched: list[dict[str, Any]] = []
+        for line in reversed(self.audit_path.read_text(encoding="utf-8").splitlines()):
             try:
                 item = json.loads(line)
             except json.JSONDecodeError:
                 continue
             if wanted is not None and item.get("event") not in wanted:
                 continue
-            entries.append(item)
-            if len(entries) >= limit:
-                break
-        return entries
+            if start_ts is not None or end_ts is not None:
+                stamp = self._audit_ts(item)
+                if start_ts is not None and stamp < start_ts:
+                    continue
+                if end_ts is not None and stamp >= end_ts:
+                    continue
+            matched.append(item)
+        total = len(matched)
+        start = (page - 1) * page_size
+        return matched[start:start + page_size], total

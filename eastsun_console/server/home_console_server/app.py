@@ -987,8 +987,9 @@ class ConsoleServer:
         old_password = str(body.get("oldPassword", ""))
         new_password = str(body.get("newPassword", ""))
         account_obj = next((a for a in self.store.accounts if a.username == session["username"]), None)
+        # 旧密码错误属于表单校验失败，用 400 而不是 401，避免前端当成会话过期而跳回首页。
         if not account_obj or not verify_pin(old_password, account_obj.password_hash):
-            return web.json_response({"error": "旧密码不正确"}, status=401)
+            return web.json_response({"error": "旧密码不正确"}, status=400)
         if not self.store.change_password(account_obj.id, new_password):
             return web.json_response({"error": f"新密码需 {PASSWORD_MIN}–{PASSWORD_MAX} 位"}, status=400)
         # 改密码后吊销该账户其他会话，但保留当前会话免得反复登录。
@@ -1343,14 +1344,38 @@ class ConsoleServer:
         return web.json_response(self.store.layout)
 
     async def get_audit(self, request: web.Request) -> web.Response:
-        """读取操作记录。?event=service_call,scene_call 只看“操控记录”，可用逗号分隔多个事件类型；最多返回 500 条。"""
+        """分页读取操作记录。
+
+        参数：page（从 1 开始，默认 1）、pageSize（默认 50，上限 500）、
+        event（可用逗号分隔多个类型，如 service_call,scene_call）、from / to（Unix 秒，左闭右开）。
+        返回 {items, total, page, pageSize}，前端据此显示分页。
+        """
         self._require_admin(request)
         event = request.query.get("event") or None
-        try:
-            limit = int(request.query.get("limit", "500"))
-        except ValueError:
-            limit = 500
-        return web.json_response(self.store.recent_audit(max(1, min(limit, 500)), event=event))
+
+        def number(name: str, default: float | None = None) -> float | None:
+            raw = request.query.get(name)
+            if raw is None or raw == "":
+                return default
+            try:
+                return float(raw)
+            except ValueError:
+                return default
+
+        def integer(name: str, default: int, minimum: int, maximum: int) -> int:
+            value = number(name, float(default))
+            return max(minimum, min(int(value), maximum)) if value is not None else default
+
+        page = integer("page", 1, 1, 100000)
+        page_size = integer("pageSize", 50, 1, 500)
+        items, total = self.store.query_audit(
+            page=page,
+            page_size=page_size,
+            event=event,
+            start_ts=number("from"),
+            end_ts=number("to"),
+        )
+        return web.json_response({"items": items, "total": total, "page": page, "pageSize": page_size})
 
 
     # ---------- 天气（中国天气网，只读，无需登录） ----------
