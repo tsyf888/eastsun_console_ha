@@ -127,6 +127,14 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   // 身份提示：未登录只能查看状态；子账号可以控制但没有管理员权限（进入或切换账户时提示一次）。
   const [appNotice, setAppNotice] = useState<string | null>(null);
   const identity = authenticated.visitor ? 'visitor' : authenticated.user?.isAdmin ? 'admin' : 'member';
+  // 登录 / 退出后必须重建 WebSocket：握手时携带的 Cookie 不会更新，旧连接会一直按建连时的身份鉴权，
+  // 只改前端状态是不够的，会出现“登录后要刷新页面才能控制”。
+  const identityRef = useRef(identity);
+  useEffect(() => {
+    if (identityRef.current === identity) return;
+    identityRef.current = identity;
+    server.reconnect();
+  }, [identity]);
   useEffect(() => {
     if (identity === 'visitor') setAppNotice('未登录，仅可查看状态，登录后才能控制设备');
     else if (identity === 'member') setAppNotice('该账户不是管理员账户，仅可控制与查看');

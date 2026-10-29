@@ -3,11 +3,12 @@
  * 与后端 ICON_KEY_RE 一致；遇到未知键时统一回退默认图标，旧数据不会显示成空白。
  */
 import {
-  AirVent, Aperture, Armchair, Baby, Bath, BedDouble, BedSingle, Blinds, BookOpen, Car, CircleDot, Clapperboard,
-  Coffee, CookingPot, DoorOpen, Droplets, Dumbbell, Fan, Film, Flame, Flower2, Gamepad2, Grid2x2,
-  Heart, House, Lamp, LampCeiling, LampDesk, LampFloor, LampWallUp, Lightbulb, Lock, LockOpen, Monitor, Moon, MoonStar, Music,
-  Power, Refrigerator, ShieldCheck, ShowerHead, Snowflake, Sofa, Sparkles, Spline, Sun,
-  Sunrise, Sunset, Thermometer, TreePine, Tv, Users, UtensilsCrossed, Warehouse, WashingMachine, Wine, Wind,
+  AirVent, Aperture, Archive, Armchair, Baby, Bath, BedDouble, BedSingle, Bike, Blinds, BookOpen, Boxes, Briefcase, Building2,
+  Car, CircleDot, Clapperboard, Coffee, CookingPot, DoorClosed, DoorOpen, Droplets, Dumbbell, Fan, Fence, Film, Flame, Flower2,
+  Gamepad2, Grid2x2, Guitar, Heart, House, Lamp, LampCeiling, LampDesk, LampFloor, LampWallUp, Library, Lightbulb, Lock, LockOpen,
+  Monitor, Moon, MoonStar, Mountain, Music, Package, Palette, PartyPopper, PawPrint, Piano, Power, Refrigerator, Server, ShieldCheck,
+  ShowerHead, Snowflake, Sofa, Sparkles, Spline, Sprout, Store, Sun, Sunrise, Sunset, Tent, Theater, Thermometer, TreePine, Trees,
+  Tv, Umbrella, Users, Utensils, UtensilsCrossed, Warehouse, WashingMachine, Waves, Wine, Wind,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { brandIcons, brandIconKeys } from './brandIcons';
@@ -43,6 +44,30 @@ export const ROOM_ICONS: IconChoice[] = [
   { key: 'wine', label: '酒柜/吧台', Icon: Wine },
   { key: 'coffee', label: '茶室/咖啡', Icon: Coffee },
   { key: 'tree-pine', label: '庭院', Icon: TreePine },
+  { key: 'building-2', label: '公寓/楼栋', Icon: Building2 },
+  { key: 'server', label: '机房/弱电间', Icon: Server },
+  { key: 'library', label: '图书角', Icon: Library },
+  { key: 'briefcase', label: '工作间', Icon: Briefcase },
+  { key: 'archive', label: '储藏柜', Icon: Archive },
+  { key: 'package', label: '杂物间', Icon: Package },
+  { key: 'boxes', label: '库房', Icon: Boxes },
+  { key: 'door-closed', label: '室内门厅', Icon: DoorClosed },
+  { key: 'fence', label: '后院', Icon: Fence },
+  { key: 'paw-print', label: '宠物房', Icon: PawPrint },
+  { key: 'tent', label: '儿童游戏区', Icon: Tent },
+  { key: 'theater', label: '家庭影院', Icon: Theater },
+  { key: 'piano', label: '琴房', Icon: Piano },
+  { key: 'guitar', label: '乐器房', Icon: Guitar },
+  { key: 'palette', label: '画室', Icon: Palette },
+  { key: 'party-popper', label: '活动室', Icon: PartyPopper },
+  { key: 'sprout', label: '花房/绿植', Icon: Sprout },
+  { key: 'trees', label: '花园', Icon: Trees },
+  { key: 'mountain', label: '露台/山景', Icon: Mountain },
+  { key: 'waves', label: '泳池', Icon: Waves },
+  { key: 'umbrella', label: '凉台', Icon: Umbrella },
+  { key: 'store', label: '商铺', Icon: Store },
+  { key: 'bike', label: '自行车房', Icon: Bike },
+  { key: 'utensils', label: '早餐区', Icon: Utensils },
 ];
 
 /** 情景按钮图标；第一项为默认。 */

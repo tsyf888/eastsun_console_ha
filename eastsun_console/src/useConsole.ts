@@ -149,5 +149,13 @@ export function useConsole() {
     return clientRef.current?.callService(entity, service, data) ?? Promise.reject(new Error('正在重新连接，操作未发送'));
   }
 
-  return { connected, status, catalogue, custom, entityStates, timers, layout, staleSince, offlineSince, callService };
+  /**
+   * 强制重建连接。WebSocket 握手时携带的 Cookie 不会随登录 / 退出更新，
+   * 旧连接会一直按建连时的身份鉴权，所以登录状态变化后必须重连才能拿到新身份。
+   */
+  function reconnect() {
+    clientRef.current?.wake(true);
+  }
+
+  return { connected, status, catalogue, custom, entityStates, timers, layout, staleSince, offlineSince, callService, reconnect };
 }

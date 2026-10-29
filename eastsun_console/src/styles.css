@@ -1144,7 +1144,7 @@ strong { font-weight: 600; }
 .climate-card--fan { --tone: var(--fan); }
 .climate-card--auto { --tone: var(--accent); }
 .climate-card .tile__top { align-items: center; }
-.climate-card .tile__top > .tile__room { margin-left: auto; }
+.climate-card .tile__top > .tile__room { margin-left: auto; align-self: flex-start; }
 .climate-card__power { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
 .climate-card__power:hover:not(:disabled) { color: var(--text); }
 .climate-card__power:active:not(:disabled) { transform: scale(.92); }
@@ -1208,7 +1208,7 @@ strong { font-weight: 600; }
 /* ---------- Home: running devices ---------- */
 .tile-grid--running .tile__room { color: var(--text-2); font-size: 11.5px; }
 /* 首页“常用设备”“正在运行”卡片的房间名：统一放在顶行最右、贴卡片上边（各类卡片位置一致），右侧控件（调色、空调电源）排在它左侧。 */
-.tile-grid--quick .tile__room, .tile-grid--running .tile__room { order: 10; align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
+.tile-grid--quick .tile__room, .tile-grid--running .tile__room, .tile-grid--category .tile__room { order: 10; align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
 /* 编辑常用设备时右上角被星标、拖动把手占用：房间名改到设备名上方显示。 */
 .tile__room--inline { display: none; }
 .tile-grid--quick .tile--editing .tile__room:not(.tile__room--inline) { display: none; }
@@ -1908,7 +1908,9 @@ html, body { overscroll-behavior-y: none; }
 .label-chip--active, .label-chip--active:hover { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 
 /* ---------- 设置 → 房间：房间管理 ---------- */
-.custom-add-row { display: flex; gap: 10px; margin: 4px 0 14px; }
+.custom-add-row { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+/* 新建房间行的图标按钮与输入框、新建按钮同高，图标严格居中 */
+.custom-add-row .room-icon-button { width: 44px; height: 44px; border-radius: var(--radius-sm); }
 .custom-add-row input {
   flex: 1; min-width: 0; min-height: 44px; padding: 0 14px; border: 1px solid var(--hairline-strong);
   border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 14px;
@@ -1992,7 +1994,8 @@ html, body { overscroll-behavior-y: none; }
 
 /* ---------- 图标自定义：房间行图标按钮、情景图标按钮、图标选择弹窗 ---------- */
 .room-icon-button {
-  display: inline-grid; place-items: center; width: 32px; height: 32px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center; padding: 0; line-height: 1;
+  width: 32px; height: 32px; flex: none;
   border: 1px solid transparent; border-radius: 50%; background: var(--surface-2); color: var(--text-2);
   cursor: pointer; transition: border-color .18s, background-color .18s, color .18s;
 }

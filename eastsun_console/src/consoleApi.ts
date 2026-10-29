@@ -117,6 +117,8 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
     response = await fetch(apiPath(path), {
       method,
       credentials: 'same-origin',
+      // 鉴权状态与设备数据都必须是实时的，任何缓存都可能让登录后仍读到旧的访客身份。
+      cache: 'no-store',
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
