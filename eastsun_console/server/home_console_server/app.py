@@ -76,7 +76,9 @@ def _cookie_attrs(request: web.Request) -> dict[str, Any]:
 # 此头也无法绕过账号登录（加项的 8765 端口默认不映射宿主机，外部只能走 Ingress）。
 INGRESS_HEADER = "X-Ingress-Path"
 INGRESS_VISITOR = {"username": "侧边栏访客", "isAdmin": False, "remember": True, "ingress": True}
-# 侧边栏自动登录的管理员名单：只有这些 HA 用户名按管理员放行，其余一律按普通成员（可控制、不可改设置）。
+# 侧边栏自动登录：管理员优先按 HA 用户组判定（system-admin），更可靠且不可被自行改名绕过；
+# 仅当 HA 未提供组信息时，才退回下面这份内置名单（HA 登录用户名或显示名称）。
+HA_ADMIN_GROUPS = {"system-admin"}
 INGRESS_ADMIN_USERS = {"西子艺尚", "管理员"}
 
 
@@ -84,16 +86,38 @@ def _is_ingress_request(request: web.Request) -> bool:
     return bool(os.environ.get("SUPERVISOR_TOKEN")) and bool(request.headers.get(INGRESS_HEADER))
 
 
-def _ingress_user(request: web.Request) -> str:
-    """HA 侧边栏请求里已认证的 HA 用户名；非 Ingress 或没带用户信息时返回空串。
+def _header_text(value: str | None) -> str:
+    """HTTP 头按 latin-1 解码，中文显示名常以“UTF-8 被当成 latin-1”的形式到达，这里尝试还原。"""
+    text = (value or "").strip()
+    if not text:
+        return ""
+    try:
+        return text.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return text
 
-    Supervisor 会把 X-Remote-User-Name / X-Remote-User-Display-Name 注入到侧边栏请求，
-    这些请求在到达加载项之前已经过 HA 自身的登录认证。用它自动登录可以避免内外网
-    两个不同域名各登录一次（Cookie 无法跨域共享）。
+
+def _ingress_identity(request: web.Request) -> tuple[str, bool] | None:
+    """HA 侧边栏请求里已认证用户的 (名字, 是否管理员)；非 Ingress 或拿不到用户信息时返回 None。
+
+    Supervisor 会把 X-Remote-User-Name / X-Remote-User-Display-Name / X-Remote-User-Groups
+    注入到侧边栏请求，这些请求在到达加载项前已经过 HA 自身的登录认证。用它自动登录，
+    可以避免内外网两个不同域名各登录一次（Cookie 无法跨域共享）。
+
+    管理员判定只信 HA 的用户组（system-admin），不信显示名称——显示名称用户可以自行修改，
+    否则任何普通成员把名字改成“管理员”就能拿到控制台管理员权限。
     """
     if not _is_ingress_request(request):
-        return ""
-    return (request.headers.get("X-Remote-User-Display-Name") or request.headers.get("X-Remote-User-Name") or "").strip()
+        return None
+    display = _header_text(request.headers.get("X-Remote-User-Display-Name"))
+    login = _header_text(request.headers.get("X-Remote-User-Name"))
+    name = display or login
+    if not name:
+        return None
+    groups = {item.strip().lower() for item in (request.headers.get("X-Remote-User-Groups") or "").split(",") if item.strip()}
+    if groups:
+        return name, bool(groups & HA_ADMIN_GROUPS)
+    return name, bool({display, login} & INGRESS_ADMIN_USERS)
 
 
 # ---------- 服务白名单：只允许这些服务及参数，目标必须是当前页面可见的实体 ----------
@@ -893,11 +917,10 @@ class ConsoleServer:
         session = self.sessions.get(request.cookies.get(COOKIE))
         if session:
             return session
-        ha_user = _ingress_user(request)
-        if ha_user:
-            # 名单里可以是 HA 登录用户名，也可以是显示名称，任一匹配即按管理员放行。
-            names = {ha_user, (request.headers.get("X-Remote-User-Name") or "").strip()}
-            return {"username": ha_user, "isAdmin": bool(names & INGRESS_ADMIN_USERS), "remember": True, "ingress": True, "auto": True}
+        identity = _ingress_identity(request)
+        if identity:
+            name, is_admin = identity
+            return {"username": name, "isAdmin": is_admin, "remember": True, "ingress": True, "auto": True}
         return None
 
     def _require_login(self, request: web.Request) -> dict[str, Any]:
