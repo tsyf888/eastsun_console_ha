@@ -1144,7 +1144,7 @@ strong { font-weight: 600; }
 .climate-card--fan { --tone: var(--fan); }
 .climate-card--auto { --tone: var(--accent); }
 .climate-card .tile__top { align-items: center; }
-.climate-card .tile__top > .tile__room { margin-left: auto; align-self: flex-start; }
+.climate-card .tile__top > .tile__room { margin-left: auto; }
 .climate-card__power { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
 .climate-card__power:hover:not(:disabled) { color: var(--text); }
 .climate-card__power:active:not(:disabled) { transform: scale(.92); }
@@ -1208,11 +1208,14 @@ strong { font-weight: 600; }
 /* ---------- Home: running devices ---------- */
 .tile-grid--running .tile__room { color: var(--text-2); font-size: 11.5px; }
 /* 首页“常用设备”“正在运行”卡片的房间名：统一放在顶行最右、贴卡片上边（各类卡片位置一致），右侧控件（调色、空调电源）排在它左侧。 */
-.tile-grid--quick .tile__room, .tile-grid--running .tile__room, .tile-grid--category .tile__room { order: 10; align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
+.tile-grid--quick .tile__room, .tile-grid--running .tile__room { order: 10; align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
 /* 编辑常用设备时右上角被星标、拖动把手占用：房间名改到设备名上方显示。 */
 .tile__room--inline { display: none; }
 .tile-grid--quick .tile--editing .tile__room:not(.tile__room--inline) { display: none; }
 .tile-grid--quick .tile--editing .tile__room--inline { display: block; order: 0; max-width: none; margin: 0 0 2px; color: var(--text-2); font-size: 11.5px; line-height: 15px; }
+/* 类别详情页的空调卡：房间名与首页“常用设备”里的空调卡保持一致（顶行最右、贴卡片上边），
+   否则会被 .climate-card .tile__top 的垂直居中压到 1×1 卡设定温度的位置上，出现文字重叠。 */
+.tile-grid--category .climate-card .tile__top > .tile__room { align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
 
 .empty-room { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); color: var(--text-2); }
 .empty-room p { margin: 0; }
