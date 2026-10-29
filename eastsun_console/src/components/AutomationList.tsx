@@ -84,8 +84,8 @@ export function AutomationList({ canControl, onExpired }: AutomationListProps) {
 
   return (
     <div className="automation-list">
-      {data.source === 'demo' && <p className="automation-list__note">当前为演示数据，开关只影响演示，不会改动 HA。</p>}
-      {data.source === 'live' && !data.connected && <p className="automation-list__note">HA 未连接，连接后显示自动化。</p>}
+      {data.source === 'demo' && <p className="automation-list__note">当前为演示数据，开关只影响演示，不会改动实际设备。</p>}
+      {data.source === 'live' && !data.connected && <p className="automation-list__note">未连接，连接后显示自动化。</p>}
       {!canControl && <p className="automation-list__note">已关闭“允许控制设备”（只读模式），只能查看状态。</p>}
       {data.automations.length > 0 && (
         <div className="automation-list__tools">
@@ -110,7 +110,7 @@ export function AutomationList({ canControl, onExpired }: AutomationListProps) {
           })}
         </ul>
       ) : (
-        <p className="settings-message" role="status">{data.automations.length === 0 ? (data.source === 'live' && data.connected ? 'HA 中还没有自动化。' : '') : '没有匹配的自动化。'}</p>
+        <p className="settings-message" role="status">{data.automations.length === 0 ? (data.source === 'live' && data.connected ? '还没有自动化。' : '') : '没有匹配的自动化。'}</p>
       )}
       <p className={`settings-message${error ? ' settings-message--error' : ''}`} role="status">{error}</p>
     </div>

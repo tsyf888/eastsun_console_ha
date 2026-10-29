@@ -529,6 +529,7 @@ function MetricPicker({ metric, label, scopeName, candidates, current, onSave, o
 /** 图标选择弹窗状态：给房间、新建情景共用；编辑情景的图标弹窗在其组件内部自持。 */
 type IconPickerState =
   | { kind: 'room'; roomId: string }
+  | { kind: 'room-new' }
   | { kind: 'scene-add' }
   | null;
 
@@ -540,6 +541,7 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [newRoomName, setNewRoomName] = useState('');
+  const [newRoomIcon, setNewRoomIcon] = useState('');
   const [confirmRoomId, setConfirmRoomId] = useState<string | null>(null);
   const [pickerRoomId, setPickerRoomId] = useState<string | null>(null);
   const [sceneName, setSceneName] = useState('');
@@ -599,7 +601,8 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
     if (name.length > ROOM_NAME_MAX) { setError(`房间名称最多 ${ROOM_NAME_MAX} 个字`); return; }
     if (custom.rooms.some((room) => room.name === name)) { setError('已有同名房间'); return; }
     setNewRoomName('');
-    void mutate({ ...custom, rooms: [...custom.rooms, { id: newId('r'), name, icon: '' }] }, `已新建房间“${name}”`);
+    setNewRoomIcon('');
+    void mutate({ ...custom, rooms: [...custom.rooms, { id: newId('r'), name, icon: newRoomIcon }] }, `已新建房间“${name}”`);
   }
 
   function moveRoom(index: number, delta: number) {
@@ -928,17 +931,24 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
   );
   const metricSourceOf = (scope: string, metric: MetricName) => custom.metricSources?.find((item) => item.scope === scope && item.metric === metric);
   const editingScene = editingSceneId ? custom.scenes.find((scene) => scene.id === editingSceneId) ?? null : null;
-  const iconPickerChoices: IconChoice[] | null = iconPicker ? (iconPicker.kind === 'room' ? ROOM_ICONS : SCENE_ICONS) : null;
+  const iconPickerChoices: IconChoice[] | null = iconPicker ? (iconPicker.kind === 'scene-add' ? SCENE_ICONS : ROOM_ICONS) : null;
   const iconPickerValue = iconPicker
     ? iconPicker.kind === 'room'
       ? custom.rooms.find((room) => room.id === iconPicker.roomId)?.icon ?? ''
-      : sceneIcon
+      : iconPicker.kind === 'room-new'
+        ? newRoomIcon
+        : sceneIcon
     : '';
+  // 新建房间的图标预览：跟随输入的名称自动匹配，未选图标时用默认图标。
+  const NewRoomIcon = roomIcon({ id: '', name: newRoomName, icon: newRoomIcon });
 
   return (
     <>
       <CollapsibleCard icon={DoorOpen} title="房间与设备">
         <div className="custom-add-row">
+          <button type="button" className="room-icon-button" onClick={() => setIconPicker({ kind: 'room-new' })} aria-label="选择新房间的图标" title="点按选择图标">
+            <NewRoomIcon size={17} />
+          </button>
           <input type="text" maxLength={ROOM_NAME_MAX} placeholder="新房间名称，如：客厅" value={newRoomName} onChange={(event) => { setNewRoomName(event.target.value); setError(null); }} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} aria-label="新房间名称" />
           <button type="button" className="small-button small-button--selected" onClick={addRoom} disabled={!newRoomName.trim()}><Plus size={15} />新建房间</button>
         </div>
@@ -1330,14 +1340,15 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
 
       {iconPicker && iconPickerChoices && (
         <IconPicker
-          title={iconPicker.kind === 'room' ? '房间图标' : '情景按钮图标'}
+          title={iconPicker.kind === 'scene-add' ? '情景按钮图标' : '房间图标'}
           choices={iconPickerChoices}
-          includeAuto={iconPicker.kind === 'room'}
+          includeAuto={iconPicker.kind !== 'scene-add'}
           value={iconPickerValue}
           pages={[{ label: '更多图标', choices: PHU_ICONS }]}
           onClose={() => setIconPicker(null)}
           onPick={(icon) => {
             if (iconPicker.kind === 'room') setRoomIcon(iconPicker.roomId, icon);
+            else if (iconPicker.kind === 'room-new') { setNewRoomIcon(icon); setIconPicker(null); }
             else { setSceneIcon(icon); setIconPicker(null); }
           }}
         />

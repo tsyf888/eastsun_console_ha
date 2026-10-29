@@ -1,7 +1,7 @@
 """会话与登录限流。
 
-会话通过 sessions.json 持久化，重启后浏览器复用 Cookie 免重新登录（默认 30 天）；
-服务侧仍然校验 Cookie 有效性，登出（/api/admin/logout）即从 sessions.json 中移除该 token。
+会话通过 sessions.json 持久化，重启后浏览器复用 Cookie 免重新登录。
+登录状态长期有效，只有主动登出（/api/admin/logout）或账户被删除 / 改密码时才会失效。
 """
 
 from __future__ import annotations
@@ -12,8 +12,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-SESSION_IDLE_SECONDS = 10 * 60
-REMEMBER_SECONDS = 30 * 24 * 60 * 60  # 记住登录：30 天
 FREE_ATTEMPTS = 5
 BASE_LOCK_SECONDS = 60
 MAX_LOCK_SECONDS = 15 * 60
@@ -30,10 +28,10 @@ def _write_private(path: Path, text: str) -> None:
 
 
 class Sessions:
-    """会话存储：token → {expires_at, username, is_admin, remember}。
+    """会话存储：token → {username, is_admin, remember}。
 
-    持久化到 sessions.json；登录时调用 create() 拿 token 写入 Cookie，
-    每次请求 touch() 校验有效性。登出 revoke() 移除单个 token。
+    持久化到 sessions.json；登录时调用 create() 拿 token 写入 Cookie。
+    会话不设过期时间，只有 revoke() / revoke_all() / revoke_user() 才移除。
     """
 
     def __init__(self, persist_path: Path | None = None) -> None:
@@ -50,20 +48,15 @@ class Sessions:
             return
         if not isinstance(raw, dict):
             return
-        now = time.time()
         for token, info in raw.items():
             if not isinstance(info, dict):
                 continue
-            expires_at = info.get("expires_at", 0)
-            if not isinstance(expires_at, (int, float)) or expires_at < now:
-                continue
             self._sessions[token] = {
-                "expires_at": expires_at,
                 "username": str(info.get("username", "")),
                 "isAdmin": bool(info.get("isAdmin", False)),
                 "remember": bool(info.get("remember", True)),
             }
-        # 加载完顺便清理掉过期的，避免文件无限增长。
+        # 清掉旧版本残留的 expires_at 字段，保持文件结构统一。
         self._persist()
 
     def _persist(self) -> None:
@@ -77,9 +70,7 @@ class Sessions:
 
     def create(self, username: str, is_admin: bool, remember: bool = True) -> str:
         session_id = secrets.token_urlsafe(32)
-        ttl = REMEMBER_SECONDS if remember else SESSION_IDLE_SECONDS
         self._sessions[session_id] = {
-            "expires_at": time.time() + ttl,
             "username": username,
             "isAdmin": is_admin,
             "remember": remember,
@@ -88,21 +79,16 @@ class Sessions:
         return session_id
 
     def get(self, session_id: str | None) -> dict[str, Any] | None:
-        """返回会话信息 {username, isAdmin, remember}；过期或不存在返回 None。"""
+        """返回会话信息 {username, isAdmin, remember}；不存在返回 None。"""
         if not session_id:
             return None
         info = self._sessions.get(session_id)
         if not info:
             return None
-        now = time.time()
-        if info["expires_at"] < now:
-            self._sessions.pop(session_id, None)
-            self._persist()
-            return None
         return {"username": info["username"], "isAdmin": info["isAdmin"], "remember": info["remember"]}
 
     def touch(self, session_id: str | None) -> bool:
-        """仅校验有效性；记住登录的会话不再顺延，到期需重新登录。"""
+        """仅校验有效性：登录长期有效，只有主动登出才会失效。"""
         return self.get(session_id) is not None
 
     def revoke(self, session_id: str | None) -> None:

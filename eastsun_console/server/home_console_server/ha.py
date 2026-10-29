@@ -191,7 +191,7 @@ class HaUpstream:
     async def _send(self, payload: dict[str, Any]) -> Any:
         ws = self._ws
         if ws is None or ws.closed:
-            raise ConnectionError("未连接 HA")
+            raise ConnectionError("未连接")
         message_id = self._next_id
         self._next_id += 1
         future: asyncio.Future[Any] = asyncio.get_running_loop().create_future()
@@ -200,6 +200,6 @@ class HaUpstream:
         try:
             return await asyncio.wait_for(future, CALL_TIMEOUT)
         except asyncio.TimeoutError as error:
-            raise TimeoutError("HA 响应超时") from error
+            raise TimeoutError("响应超时") from error
         finally:
             self._pending.pop(message_id, None)

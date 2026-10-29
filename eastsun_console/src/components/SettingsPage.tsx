@@ -447,7 +447,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       <div id={`${formId}-panel`} className="settings-panel" role="tabpanel" aria-labelledby={`${formId}-tab-${tab}`}>
         {tab === 'connection' && <>
           <form className="settings-card" onSubmit={saveConnection}>
-            <div className="settings-card__heading"><span className="tile__chip"><Server size={20} /></span><div><h3>Home Assistant 连接</h3><p>地址和令牌保存在控制台服务，令牌加密存储且不会发给浏览器；由服务统一连接 HA。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><Server size={20} /></span><div><h3>Home Assistant 连接</h3><p>地址和令牌保存在控制台服务，令牌加密存储且不会发给浏览器；由服务统一连接。</p></div></div>
             <div className="settings-row">
               <span id={`${formId}-source`}>数据来源</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-source`}>
@@ -458,12 +458,12 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             </div>
             {live && <p className={`settings-status settings-status--${liveTone}`} role="status">{liveText}</p>}
             <label className="settings-field">
-              <span>HA 地址</span>
+              <span>连接地址</span>
               <input type="url" inputMode="url" autoComplete="off" spellCheck={false} placeholder="http://192.168.1.10:8123" value={haUrl} onChange={(event) => setHaUrl(event.target.value)} />
             </label>
             <label className="settings-field">
               <span>长期访问令牌</span>
-              <input type="password" autoComplete="off" spellCheck={false} placeholder={settings.hasToken ? '已保存，留空则保持不变' : '在 HA 个人资料 → 安全 中创建'} value={haToken} onChange={(event) => setHaToken(event.target.value)} />
+              <input type="password" autoComplete="off" spellCheck={false} placeholder={settings.hasToken ? '已保存，留空则保持不变' : '在 Home Assistant 个人资料 → 安全 中创建'} value={haToken} onChange={(event) => setHaToken(event.target.value)} />
             </label>
             <div className="settings-actions">
               <button type="submit" className="small-button small-button--selected">保存连接设置</button>
@@ -599,7 +599,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
           </section>
 
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><ListChecks size={20} /></span><div><h3>设备筛选</h3><p>控制台自动发现 HA 中的灯、温控、播放器、人员和常用传感器；这里按 HA 标签分组，决定哪些设备参与显示（再到“房间”标签把它们加入房间）。未显示的设备控制台服务也不允许控制；场景和脚本不在这里，由“房间”标签的情景按钮管理。在 HA 中隐藏或禁用的实体不参与发现。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><ListChecks size={20} /></span><div><h3>设备筛选</h3><p>控制台自动发现灯、温控、播放器、人员和常用传感器；这里按标签分组，决定哪些设备参与显示（再到“房间”标签把它们加入房间）。未显示的设备控制台服务也不允许控制；场景和脚本不在这里，由“房间”标签的情景按钮管理。在 Home Assistant 中隐藏或禁用的实体不参与发现。</p></div></div>
             <EntityFilter connected={Boolean(connected)} onExpired={onExpired} />
           </section>
         </>}
@@ -621,7 +621,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
         {tab === 'automations' && <>
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><Sun size={20} /></span><div><h3>季节规则</h3><p>启用后，控制台用 HA 令牌在 HA 中创建并维护“控制台-季节”辅助元素和三条自动化：夏季制热一打开就关闭；夏季空调从关闭开成制热时改为制冷；冬季空调从关闭开成制冷时改为制热。送风、除湿等模式不处理。关闭后删除这三条自动化（保留季节辅助元素）。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><Sun size={20} /></span><div><h3>季节规则</h3><p>启用后，控制台用已保存的令牌在 Home Assistant 中创建并维护“控制台-季节”辅助元素和三条自动化：夏季制热一打开就关闭；夏季空调从关闭开成制热时改为制冷；冬季空调从关闭开成制冷时改为制热。送风、除湿等模式不处理。关闭后删除这三条自动化（保留季节辅助元素）。</p></div></div>
             <div className="settings-row">
               <span id={`${formId}-season-rules`}>启用季节规则</span>
               <button type="button" role="switch" className="settings-switch" aria-checked={settings.seasonRules} aria-labelledby={`${formId}-season-rules`} onClick={() => { setSeasonMessage(null); void save({ seasonRules: !settings.seasonRules }, (message) => { if (message?.tone === 'error') setSeasonMessage(message); }, ''); }}><span /></button>

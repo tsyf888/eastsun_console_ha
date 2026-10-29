@@ -1144,7 +1144,7 @@ strong { font-weight: 600; }
 .climate-card--fan { --tone: var(--fan); }
 .climate-card--auto { --tone: var(--accent); }
 .climate-card .tile__top { align-items: center; }
-.climate-card .tile__room { margin-left: auto; }
+.climate-card .tile__top > .tile__room { margin-left: auto; }
 .climate-card__power { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
 .climate-card__power:hover:not(:disabled) { color: var(--text); }
 .climate-card__power:active:not(:disabled) { transform: scale(.92); }
@@ -1182,9 +1182,8 @@ strong { font-weight: 600; }
 .tile--1x1 .climate-card__target, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__target { font-size: 34px; }
 /* 1×1（含单列窄屏）只保留开关：不放 +/−，点温度或名称进详情调温。 */
 .tile--1x1 .climate-card__actions, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__actions { display: none; }
-/* 1×1 底部：左侧名称与简短状态，右侧大号温度（右下原 +/− 的位置空出来了）。 */
-.tile--1x1 .climate-card__summary, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__summary { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); grid-template-areas: "room" "name" "status"; align-items: end; column-gap: 6px; }
-.tile--1x1 .climate-card__summary .tile__room--inline, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__summary .tile__room--inline { grid-area: room; }
+/* 1×1 底部：房间名在右上角独立 .tile__room span 显示（与灯/风扇/窗帘一致），summary 里只放名称 + 简短状态。 */
+.tile--1x1 .climate-card__summary, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__summary { display: grid; flex: 1; grid-template-columns: minmax(0, 1fr); grid-template-areas: "name" "status"; align-items: end; column-gap: 6px; }
 .tile--1x1 .climate-card__summary .tile__name, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__summary .tile__name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tile--1x1 .climate-card__summary .climate-card__note--short, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__summary .climate-card__note--short { grid-area: status; }
 .tile--1x1 .climate-card__target, .adaptive-grid[data-columns="1"] .tile--2x1 .climate-card__target { position: absolute; top: 36px; right: 16px; z-index: 1; grid-area: unset; align-self: auto; margin: 0; }
@@ -1273,7 +1272,7 @@ strong { font-weight: 600; }
 .settings-tabs button[aria-selected="true"] svg { color: var(--accent); }
 .settings-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .settings-panel { display: grid; gap: 16px; min-width: 0; }
-.settings-card { display: grid; gap: 16px; padding: 20px; min-width: 0; border: 1px solid var(--glass-border); border-radius: var(--radius); background: linear-gradient(180deg, var(--sheen), transparent 55%), var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--highlight), var(--shadow); }
+.settings-card { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 20px; min-width: 0; border: 1px solid var(--glass-border); border-radius: var(--radius); background: linear-gradient(180deg, var(--sheen), transparent 55%), var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: var(--highlight), var(--shadow); }
 .settings-card--warn { border-color: var(--alert); background: color-mix(in srgb, var(--alert) 10%, var(--glass)); }
 /* 可折叠板块：标题行整行可点，展开时箭头旋转；收起时只占一行，避免长列表翻找 */
 .settings-card--collapse { display: block; padding: 0; }
@@ -1282,7 +1281,7 @@ strong { font-weight: 600; }
 .settings-card__bar h3 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
 .settings-card__chevron { flex: none; opacity: 0.55; transition: transform 0.18s ease; }
 .settings-card--open .settings-card__chevron { transform: rotate(180deg); }
-.settings-card__panel { display: grid; gap: 16px; padding: 0 20px 20px; }
+.settings-card__panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; padding: 0 20px 20px; }
 .settings-card__heading { display: flex; align-items: flex-start; gap: 12px; }
 .settings-card__heading h3 { margin: 2px 0 4px; font-size: 15px; font-weight: 600; }
 .settings-card__heading p { margin: 0; color: var(--text-3); font-size: 12.5px; line-height: 1.5; }
@@ -1316,6 +1315,8 @@ strong { font-weight: 600; }
 .device-dialog:focus { outline: none; }
 .settings-field { display: grid; gap: 7px; min-width: 0; }
 .settings-field > span { color: var(--text-2); font-size: 12.5px; }
+/* 子控件一律压到容器宽度内：select 的最小宽度由最宽 option（如长实体 ID）决定，不卡住就会撑破卡片 */
+.settings-field > * { min-width: 0; max-width: 100%; }
 .settings-field input { width: 100%; min-height: 44px; padding: 0 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 14px; }
 .settings-field input::placeholder { color: var(--text-3); }
 .settings-field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1347,8 +1348,6 @@ strong { font-weight: 600; }
 .auth-card__hint { margin: 0; color: var(--text-2); font-size: 12.5px; line-height: 1.6; }
 .auth-card__hint--first { color: var(--accent); }
 .auth-card__hint code { padding: 2px 6px; border-radius: 6px; background: var(--surface-2); color: var(--text); font-size: 12px; }
-.auth-card__remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
-.auth-card__remember input { width: 16px; height: 16px; accent-color: var(--accent); }
 @media (max-width: 600px) {
   .auth-screen { padding: 12px; align-items: start; }
   .auth-card { padding: 20px 16px; }
@@ -1977,7 +1976,7 @@ html, body { overscroll-behavior-y: none; }
 .scene-manage-row code { flex: 1; min-width: 0; color: var(--text-3); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scene-add { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline); }
 .settings-field select {
-  width: 100%; min-height: 44px; padding: 0 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-sm);
+  width: 100%; min-width: 0; max-width: 100%; min-height: 44px; padding: 0 14px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-sm);
   background: var(--bg); color: var(--text); font-size: 14px;
 }
 .scene-add .small-button { align-self: end; justify-self: start; min-height: 44px; }
@@ -2020,13 +2019,13 @@ html, body { overscroll-behavior-y: none; }
 
 @media (max-width: 600px) {
   .scene-add { grid-template-columns: minmax(0, 1fr); }
-  .scene-add > .small-button { justify-self: stretch; }
+  .custom-add-row { flex-wrap: wrap; }
   .room-manage-row { flex-wrap: wrap; }
   .scene-button { flex: 1 1 auto; justify-content: center; }
-  /* 情景按钮列表：名称占首行，entity ID 单独一行缩进对齐，四个操作按钮沉底 */
+  /* 情景按钮列表：名称占首行，entity ID 单独一行缩进对齐并允许换行，四个操作按钮沉底 */
   .scene-manage-row { flex-wrap: wrap; row-gap: 4px; gap: 4px; padding: 8px 10px; }
   .scene-manage-row strong { flex: 1 1 calc(100% - 20px); min-width: 0; }
-  .scene-manage-row code { flex: 1 1 100%; order: 3; padding-left: 22px; margin-top: 2px; }
+  .scene-manage-row code { flex: 1 1 100%; order: 3; padding-left: 22px; margin-top: 2px; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
   .scene-manage-row .icon-button { width: 36px; height: 36px; }
   .metric-source-row__current em { margin-left: 8px; }
   /* 电量传感器：改 2 行布局，名字在上、按钮在右下方 */

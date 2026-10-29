@@ -32,7 +32,7 @@ async def fetch(url: str, token: str) -> list[Any]:
             reply = await ws.receive_json(timeout=10)
             if reply.get("type") != "auth_ok":
                 raise SystemExit(f"认证失败：{reply.get('message') or reply.get('type')}")
-            print(f"已连接 HA {reply.get('ha_version')}：{url}")
+            print(f"已连接 {reply.get('ha_version')}：{url}")
             results = []
             for index, command in enumerate(COMMANDS, start=1):
                 await ws.send_json({"id": index, "type": command})

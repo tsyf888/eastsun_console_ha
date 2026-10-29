@@ -569,7 +569,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
       {!canControl && <span className="demo-flag demo-flag--readonly"><Eye size={14} />只读模式</span>}
       <ConnectionBadge quiet={page !== 'home'} connected={server.connected} status={server.status} staleSince={server.staleSince} offlineSince={server.offlineSince} now={now} />
       {!live && <button type="button" className="text-button" onClick={resetDemo} aria-label="重置演示设备状态"><RotateCcw size={15} />重置演示</button>}
-      {isIngress && <button type="button" className="icon-button" onClick={toggleKiosk} aria-pressed={kiosk} aria-label={kiosk ? '退出沉浸模式' : '沉浸模式'} title={kiosk ? '退出沉浸模式（显示 HA 侧边栏与顶栏）' : '沉浸模式（隐藏 HA 侧边栏与顶栏）'}>{kiosk ? <Minimize size={18} /> : <Maximize size={18} />}</button>}
+      {isIngress && <button type="button" className="icon-button" onClick={toggleKiosk} aria-pressed={kiosk} aria-label={kiosk ? '退出沉浸模式' : '沉浸模式'} title={kiosk ? '退出沉浸模式（显示侧边栏与顶栏）' : '沉浸模式（隐藏侧边栏与顶栏）'}>{kiosk ? <Minimize size={18} /> : <Maximize size={18} />}</button>}
       <button type="button" className="icon-button hero__settings" onClick={requestSettings} aria-current={page === 'settings' ? 'page' : undefined} aria-label="设置" title="设置"><Settings size={18} /></button>
     </div>
   );

@@ -46,8 +46,7 @@ log = logging.getLogger("home_console_server")
 
 SERVER_DIR = Path(__file__).resolve().parent.parent
 COOKIE = "hc_session"  # 会话 Cookie 名（账户系统替换原 hc_admin PIN Cookie）
-SESSION_MAX_AGE = 30 * 24 * 3600  # 记住登录：Cookie 30 天
-ADMIN_GRANT_MAX_AGE = 60 * 60  # Ingress 侧边栏访客的管理员验证：临时会话 1 小时，到期自动回到访客身份
+SESSION_MAX_AGE = 10 * 365 * 24 * 3600  # 登录长期有效：Cookie 10 年，只有主动登出才清除
 EMPTY_CATALOGUE: dict[str, Any] = {"labels": [], "rooms": [], "entities": []}
 REFRESH_DELAY = 0.5
 
@@ -56,7 +55,7 @@ REFRESH_DELAY = 0.5
 # - 同站（同 IP）嵌入：Strict / Lax 均可，默认 Strict 最安全。
 # - 跨站（不同 IP）嵌入：必须用 None，且浏览器要求 SameSite=None 必须带 Secure（HTTPS）。
 #   纯 HTTP 跨站嵌入浏览器不允许携带 Cookie，需用反向代理把控制台与 HA 变成同站。
-COOKIE_SAMESITE = os.environ.get("HOME_CONSOLE_COOKIE_SAMESITE", "Strict").strip().capitalize()
+COOKIE_SAMESITE = os.environ.get("HOME_CONSOLE_COOKIE_SAMESITE", "Lax").strip().capitalize()
 if COOKIE_SAMESITE not in ("Strict", "Lax", "None"):
     COOKIE_SAMESITE = "Strict"
 # Secure 显式开关；SameSite=None 时强制 Secure（浏览器硬性要求）。
@@ -579,10 +578,10 @@ class ConsoleServer:
             raise web.HTTPNotFound(text="map not found")
         settings = self.store.settings
         if settings.data_source != "live" or not settings.ha_url:
-            raise web.HTTPServiceUnavailable(text="HA 未连接")
+            raise web.HTTPServiceUnavailable(text="未连接")
         token = self.store.token()
         if not token:
-            raise web.HTTPServiceUnavailable(text="HA 未配置令牌")
+            raise web.HTTPServiceUnavailable(text="未配置令牌")
         url = f"{settings.ha_url}/api/image_proxy/{entity}"
         try:
             timeout = aiohttp.ClientTimeout(total=10)
@@ -614,10 +613,10 @@ class ConsoleServer:
             raise web.HTTPBadRequest(text="bad src")
         settings = self.store.settings
         if settings.data_source != "live" or not settings.ha_url:
-            raise web.HTTPServiceUnavailable(text="HA 未连接")
+            raise web.HTTPServiceUnavailable(text="未连接")
         token = self.store.token()
         if not token:
-            raise web.HTTPServiceUnavailable(text="HA 未配置令牌")
+            raise web.HTTPServiceUnavailable(text="未配置令牌")
         url = f"{settings.ha_url}{src}"
         try:
             timeout = aiohttp.ClientTimeout(total=10)
@@ -844,7 +843,7 @@ class ConsoleServer:
     def _reject_reason(self, entity_id: str, service: str, data: Any) -> str | None:
         settings = self.store.settings
         if settings.data_source != "live":
-            return "当前为演示数据，未连接 HA"
+            return "当前为演示数据，未连接"
         if not settings.control_enabled:
             return "已关闭设备控制（只读模式）"
         domain = entity_id.split(".")[0]
@@ -865,7 +864,7 @@ class ConsoleServer:
         if not isinstance(data, dict) or any(key not in allowed or not allowed[key](value) for key, value in data.items()):
             return "服务参数不合法"
         if self.upstream.status.get("kind") != "connected":
-            return "HA 未连接"
+            return "未连接"
         return None
 
     # ---------- 管理接口 ----------
@@ -916,7 +915,7 @@ class ConsoleServer:
         })
 
     async def login(self, request: web.Request) -> web.Response:
-        """账号 + 密码登录；默认 remember=True，下发 30 天 Cookie 并写入 sessions.json。"""
+        """账号 + 密码登录；登录状态长期有效，只有主动退出才失效。"""
         ip = client_ip(request)
         retry_after = self.limiter.retry_after()
         if retry_after:
@@ -937,7 +936,7 @@ class ConsoleServer:
                 return web.json_response({"error": "尝试次数过多", "retryAfter": locked}, status=429)
             return web.json_response({"error": "账号或密码不正确", "remaining": self.limiter.remaining_attempts()}, status=401)
         self.limiter.record_success()
-        # Ingress 侧边栏访客验证管理员只发临时会话：审计里单独标记。
+        # 审计里标记是否来自 Ingress 侧边栏（便于区分入口），登录本身已是长期有效。
         self.store.audit("login", ip, username=account.username, temporary=_is_ingress_request(request))
         session_id = self.sessions.create(account.username, account.is_admin, remember=remember)
         response = web.json_response({
@@ -947,9 +946,8 @@ class ConsoleServer:
             "setupCompleted": self.store.setup_completed,
         })
         # Cookie path 设为 "/"：WS 握手、摄像头流、天气等 /api/* 接口都需要带上。
-        # Ingress 侧边栏访客验证管理员时只发 1 小时临时会话：不随 remember 变成长效登录，到期自动回到访客身份。
-        max_age = ADMIN_GRANT_MAX_AGE if _is_ingress_request(request) else (SESSION_MAX_AGE if remember else None)
-        response.set_cookie(COOKIE, session_id, **_cookie_attrs(request), max_age=max_age)
+        # 登录长期有效：统一发长期 Cookie，不再区分 Ingress 临时会话与 remember。
+        response.set_cookie(COOKIE, session_id, **_cookie_attrs(request), max_age=SESSION_MAX_AGE)
         return response
 
     async def logout(self, request: web.Request) -> web.Response:
@@ -1072,7 +1070,7 @@ class ConsoleServer:
             changed.append("motionCapture")
         if body.get("dataSource") in ("demo", "live") and body["dataSource"] != settings.data_source:
             if body["dataSource"] == "live" and not (settings.ha_url and settings.token_encrypted):
-                return web.json_response({"error": "请先保存 HA 地址和令牌"}, status=400)
+                return web.json_response({"error": "请先保存地址和令牌"}, status=400)
             settings.data_source, reconnect = body["dataSource"], True
             changed.append("dataSource")
 
@@ -1369,7 +1367,7 @@ class ConsoleServer:
             attributes = (self.upstream.states.get("zone.home") or {}).get("attributes") or {}
             lat, lon = attributes.get("latitude"), attributes.get("longitude")
             if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
-                return web.json_response({"error": "HA 未连接或未设置家的位置"}, status=404)
+                return web.json_response({"error": "未连接或未设置家的位置"}, status=404)
         else:
             try:
                 lon, lat = float(request.query["lon"]), float(request.query["lat"])

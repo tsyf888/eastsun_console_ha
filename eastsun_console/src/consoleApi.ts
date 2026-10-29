@@ -130,7 +130,7 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
 
 export type LoginResult = { ok: true; user: { username: string; isAdmin: boolean }; firstRun: boolean } | { ok: false; message: string; retryAfter?: number };
 
-/** 账号 + 密码登录；默认 remember=true，Cookie 30 天，下次进入页面无需重新输入。 */
+/** 账号 + 密码登录；登录状态长期有效，下次进入页面无需重新输入。 */
 export async function login(username: string, password: string, remember = true): Promise<LoginResult> {
   try {
     const data = await request<{ ok: true; user: { username: string; isAdmin: boolean }; firstRun: boolean; setupCompleted: boolean }>('/api/admin/login', 'POST', { username, password, remember });

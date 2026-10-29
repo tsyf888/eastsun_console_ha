@@ -167,7 +167,7 @@ class SeasonRules:
             await self._on_change()
             return
         if HELPER_ENTITY not in self.upstream.states:
-            raise RuntimeError("HA 中还没有季节辅助元素，请稍候同步完成后再切换")
+            raise RuntimeError("还没有季节辅助元素，请稍候同步完成后再切换")
         await self.upstream.call_service("input_select", "select_option", HELPER_ENTITY, {"option": SEASON_LABELS[season]})
         # 等 HA 回写新状态（最多 2 秒），让接口返回的季节就是新季节。
         for _ in range(20):
@@ -181,7 +181,7 @@ class SeasonRules:
         """合并短时间内的多次触发（连接、设备变化、开关设置），只同步一次。"""
         self._dirty = True
         if self.store.settings.data_source == "live":
-            self.sync_status = {"state": "syncing", "message": "正在同步到 HA…"}
+            self.sync_status = {"state": "syncing", "message": "正在同步…"}
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._loop())
 
@@ -198,10 +198,10 @@ class SeasonRules:
     async def _sync(self) -> None:
         settings = self.store.settings
         if settings.data_source != "live":
-            self.sync_status = {"state": "demo", "message": "演示模式，不会改动 HA"}
+            self.sync_status = {"state": "demo", "message": "演示模式，不会改动实际设备"}
             return
         if self.upstream.status.get("kind") != "connected":
-            self.sync_status = {"state": "waiting", "message": "等待连接 HA"}
+            self.sync_status = {"state": "waiting", "message": "等待连接"}
             return
         url, token = settings.ha_url, self.store.token()
         api = HaConfigApi(url, token)
@@ -215,7 +215,7 @@ class SeasonRules:
                         await api.delete(session, config_id)
                         deleted.append(config_id)
                 # 刚删除后可能还会有一次无事可做的同步，提示用两种情况都成立的说法。
-                self.sync_status = {"state": "off", "message": "季节规则未启用，HA 中已没有季节自动化"}
+                self.sync_status = {"state": "off", "message": "季节规则未启用，已没有季节自动化"}
                 self._audit(created, updated, deleted)
                 return
             if HELPER_ENTITY not in self.upstream.states:
@@ -236,7 +236,7 @@ class SeasonRules:
         self._audit(created, updated, deleted)
         renamed_all = await self._rename_entities(list(desired))
         counts = f"地暖 {len(heaters)} 个、空调 {len(acs)} 台，自动化 {len(desired)} 条"
-        self.sync_status = {"state": "ok", "message": f"同步完成：{counts}"} if renamed_all else {"state": "pending", "message": f"{counts}已写入，正在等待 HA 生成实体"}
+        self.sync_status = {"state": "ok", "message": f"同步完成：{counts}"} if renamed_all else {"state": "pending", "message": f"{counts}已写入，正在等待生成实体"}
         await self._on_change()
 
     async def _create_helper(self) -> None:

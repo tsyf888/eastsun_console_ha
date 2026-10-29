@@ -9,12 +9,11 @@ interface LoginPageProps {
   onAuthenticated: () => void;
 }
 
-/** 登录页：账号 + 密码 + 记住登录（默认勾选，30 天免重新输入）。 */
+/** 登录页：账号 + 密码；登录状态长期有效，只有主动退出才失效。 */
 export function LoginPage({ onAuthenticated }: LoginPageProps) {
   const formId = useId();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -28,7 +27,7 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
     const p = password;
     if (!u || !p) { setError('请输入账号和密码'); return; }
     setChecking(true);
-    const result: LoginResult = await loginApi(u, p, remember).catch((reason: Error) => ({ ok: false as const, message: reason.message }));
+    const result: LoginResult = await loginApi(u, p).catch((reason: Error) => ({ ok: false as const, message: reason.message }));
     setChecking(false);
     if (result.ok) {
       onAuthenticated();
@@ -56,10 +55,6 @@ export function LoginPage({ onAuthenticated }: LoginPageProps) {
           <span>密码</span>
           <input id={`${formId}-password`} type="password" autoComplete="current-password" value={password}
                  onChange={(event) => setPassword(event.target.value)} disabled={checking} />
-        </label>
-        <label className="auth-card__remember">
-          <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} disabled={checking} />
-          <span>记住登录（30 天内免重新输入）</span>
         </label>
         {error && <p className="settings-message settings-message--error" role="alert">{error}</p>}
         <div className="settings-actions">

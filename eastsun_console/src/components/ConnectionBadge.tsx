@@ -27,7 +27,7 @@ export function ConnectionBadge({ connected, status, staleSince, offlineSince, n
       : staleSince !== null ? `连接中断，显示 ${formatTime(new Date(staleSince))} 的状态` : '控制台服务未连接，正在重试…';
     return <span className="demo-flag demo-flag--alert" role="status"><span />{text}</span>;
   }
-  if (!status || status.dataSource === 'demo') return quiet ? null : <span className="demo-flag"><span />演示数据 · 未连接 HA</span>;
+  if (!status || status.dataSource === 'demo') return quiet ? null : <span className="demo-flag"><span />演示数据 · 未连接</span>;
   const [tone, text] = connectionText(status.ha);
   if (quiet && tone === 'good') return null;
   return <span className={`demo-flag demo-flag--${tone}`} role="status"><span />{text}</span>;
@@ -35,11 +35,11 @@ export function ConnectionBadge({ connected, status, staleSince, offlineSince, n
 
 export function connectionText(status: HaStatus | null): ['good' | 'pending' | 'alert', string] {
   switch (status?.kind) {
-    case 'connected': return ['good', `已连接 HA${status.version ? ` ${status.version}` : ''}`];
-    case 'auth_failed': return ['alert', `HA 令牌无效：${status.message}`];
-    case 'disconnected': return ['alert', status.retryInSeconds > 0 ? `HA 未连接，${status.retryInSeconds} 秒后重试` : `HA 未连接：${status.message}`];
-    case 'unconfigured': return ['alert', '尚未设置 HA 地址或令牌'];
+    case 'connected': return ['good', `已连接${status.version ? ` ${status.version}` : ''}`];
+    case 'auth_failed': return ['alert', `令牌无效：${status.message}`];
+    case 'disconnected': return ['alert', status.retryInSeconds > 0 ? `未连接，${status.retryInSeconds} 秒后重试` : `未连接：${status.message}`];
+    case 'unconfigured': return ['alert', '尚未设置地址或令牌'];
     case 'disabled': return ['pending', '演示数据'];
-    default: return ['pending', '正在连接 HA…'];
+    default: return ['pending', '正在连接…'];
   }
 }
