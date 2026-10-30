@@ -683,7 +683,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                 </div>
                 {favoriteDevices.length > 0
                   ? <AdaptiveGrid className="tile-grid tile-grid--quick" scale={tileScale}>{favoriteDevices.map(favoriteCard)}</AdaptiveGrid>
-                  : <div className="empty-room"><span className="tile__chip"><Star size={20} /></span><p>还没有常用设备。进入房间点“编辑布局”，给设备点 ☆ 即可加入。</p></div>}
+                  : <div className="empty-room"><span className="empty-room__icon" aria-hidden="true"><Star size={22} /></span><p>还没有常用设备。进入房间点“编辑布局”，给设备点 ☆ 即可加入。</p></div>}
               </>
             )}
             <div className="section-heading section-heading--spaced">
@@ -699,7 +699,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             </div>
             {runningOthers.length > 0
               ? <AdaptiveGrid className={`tile-grid tile-grid--running${homekitTiles ? ' adaptive-grid--hk' : ''}`} scale={tileScale}>{runningOthers.map(runningCard)}</AdaptiveGrid>
-              : runningNow === 0 && <div className="empty-room"><span className="tile__chip"><Power size={20} /></span><p>目前没有打开的设备。</p></div>}
+              : runningNow === 0 && <div className="empty-room"><span className="empty-room__icon" aria-hidden="true"><Power size={22} /></span><p>目前没有打开的设备。</p></div>}
           </>
         )}
         {page === 'room' && (
@@ -742,7 +742,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             return (
               <>
                 {groups.length === 0 ? (
-                  <div className="empty-room"><Icon size={36} aria-hidden="true" /><p>还没有可展示的设备。</p></div>
+                  <div className="empty-room"><span className="empty-room__icon" aria-hidden="true"><Icon size={22} /></span><p>还没有可展示的设备。</p></div>
                 ) : (
                   <section className="home-section category-all">
                     <div className="section-heading">
@@ -785,7 +785,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             <>
               {ordered.length === 0 ? (
                 <div className="empty-room">
-                  <Icon size={36} aria-hidden="true" />
+                  <span className="empty-room__icon" aria-hidden="true"><Icon size={22} /></span>
                   <p>当前没有「{CATEGORY_META[kind].label}」类设备</p>
                 </div>
               ) : (
