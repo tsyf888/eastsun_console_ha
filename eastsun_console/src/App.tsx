@@ -27,7 +27,7 @@ import { allowedSizesForDevice, favoriteIds, favoriteSizeKey, fromServerLayout, 
 import { getRoomDevices, isClimate, isLit, isRunning, sortRunning } from './selectors';
 import { sceneDisplayName, sceneTargetService } from './haAdapter';
 import { formatDateParts, formatTime, homeGreeting, useNow } from './time';
-import { isIngress, kioskOn, restoreKiosk, setKiosk } from './kiosk';
+import { isIngress, restoreKiosk, setKiosk } from './kiosk';
 import type { Device, DeviceActions, LayoutState, Room, TileSize } from './types';
 import { useConsole } from './useConsole';
 import { useHome } from './useHome';
@@ -190,8 +190,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     return () => window.removeEventListener('eastsun-home-layout', sync);
   }, []);
 
-  // HAOS Ingress 沉浸模式：隐藏 HA 自身的侧边栏与顶栏；页面加载时恢复上次状态。
-  const [kiosk, setKioskState] = useState(kioskOn());
+  // HAOS Ingress 沉浸模式：隐藏 HA 自身的侧边栏与顶栏；每次打开 / 刷新默认进入。
+  const [kiosk, setKioskState] = useState(isIngress);
   useEffect(() => { restoreKiosk(); }, []);
   function toggleKiosk() {
     const next = !kiosk;

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { apiPath } from '../consoleApi';
 import type { PersonStatus } from '../consoleClient';
 import { roomIcon } from '../appearance';
-import { getRoomActivity } from '../selectors';
+import { isActiveAlert, isRunning } from '../selectors';
 import { formatTime } from '../time';
 import type { Device, HomeState } from '../types';
 
@@ -79,15 +79,29 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onO
   ].filter((group) => group.rooms.length > 0);
   const categories = useMemo(() => {
     const counts = new Map<CategoryKind, number>();
+    const running = new Map<CategoryKind, boolean>();
+    const alerts = new Map<CategoryKind, boolean>();
+    let anyRunning = false;
+    let anyAlert = false;
     for (const device of home.devices) {
+      if (device.hidden) continue;
       const kind = categoryOf(device);
-      if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1);
+      if (!kind) continue;
+      counts.set(kind, (counts.get(kind) ?? 0) + 1);
+      if (isRunning(device)) {
+        running.set(kind, true);
+        anyRunning = true;
+      }
+      if (isActiveAlert(device)) {
+        alerts.set(kind, true);
+        anyAlert = true;
+      }
     }
     const entries = CATEGORY_KINDS
-      .map((kind) => ({ kind, count: counts.get(kind) ?? 0 }))
+      .map((kind) => ({ kind, count: counts.get(kind) ?? 0, running: running.get(kind) ?? false, alert: alerts.get(kind) ?? false }))
       .filter((entry) => entry.count > 0);
     const total = entries.reduce((sum, entry) => sum + entry.count, 0);
-    return total > 0 ? [{ kind: 'all' as CategoryKind, count: total }, ...entries] : [];
+    return total > 0 ? [{ kind: 'all' as CategoryKind, count: total, running: anyRunning, alert: anyAlert }, ...entries] : [];
   }, [home.devices]);
 
   useEffect(() => {
@@ -107,7 +121,11 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onO
             {group.rooms.map((room) => {
               const Icon = roomIcon(room);
               const occupied = occupancy?.[room.id] === true;
-              const tone = occupied ? null : getRoomActivity(home, room.id)[0]?.tone;
+              // 圆点与「正在运行」用同一判断：灯/开关/空调/风扇/扫地机/影音，演示与真实数据表现一致。
+              const roomDevices = home.devices.filter((device) => device.roomId === room.id && !device.hidden);
+              const alert = roomDevices.some(isActiveAlert);
+              const running = roomDevices.some(isRunning);
+              const tone = occupied ? null : alert ? 'alert' : running ? 'active' : null;
               return (
                 <button key={room.id} type="button" title={occupied ? `${room.name}（有人）` : room.name} aria-label={`${room.name}${occupied ? '，有人' : tone === 'alert' ? '，有告警' : tone ? '，有设备运行' : ''}`} aria-current={currentRoomId === room.id ? 'page' : undefined} onClick={() => onOpenRoom(room.id)}>
                   <Icon size={20} /><span>{room.name}</span>
@@ -122,11 +140,12 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onO
         {categories.length > 0 && (
           <div className="side-nav__group" role="group" aria-label="类别">
             <span className="side-nav__label" aria-hidden="true">类别</span>
-            {categories.map(({ kind, count }) => {
+            {categories.map(({ kind, count, running, alert }) => {
               const { Icon, label } = CATEGORY_META[kind];
               return (
-                <button key={kind} type="button" title={`${label}（${count}）`} aria-label={`${label}，共 ${count} 个`} aria-current={currentCategory === kind ? 'page' : undefined} onClick={() => onOpenCategory?.(kind)}>
+                <button key={kind} type="button" title={`${label}（${count}）`} aria-label={`${label}，共 ${count} 个${alert ? '，有告警' : running ? '，有设备运行' : ''}`} aria-current={currentCategory === kind ? 'page' : undefined} onClick={() => onOpenCategory?.(kind)}>
                   <Icon size={18} /><span>{label}</span>
+                  {alert ? <i className="side-nav__dot side-nav__dot--alert" aria-hidden="true" /> : running ? <i className="side-nav__dot side-nav__dot--active" aria-hidden="true" /> : null}
                 </button>
               );
             })}

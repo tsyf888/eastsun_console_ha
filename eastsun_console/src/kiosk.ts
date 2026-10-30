@@ -97,11 +97,10 @@ export function setKiosk(on: boolean): void {
   if (on) timer = window.setInterval(() => apply(true), 3000);
 }
 
-/** 页面加载时按上次状态恢复。 */
+/**
+ * 页面每次加载 / 刷新都默认进入沉浸模式（Ingress 下隐藏 HA 侧边栏与顶栏）。
+ * 本次会话内可手动退出；刷新后重新开启。
+ */
 export function restoreKiosk(): void {
-  if (isIngress && kioskOn()) setKiosk(true);
-}
-
-export function kioskOn(): boolean {
-  return isIngress && localStorage.getItem(STORE_KEY) === '1';
+  if (isIngress) setKiosk(true);
 }
