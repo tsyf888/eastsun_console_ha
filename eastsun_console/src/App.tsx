@@ -20,7 +20,7 @@ import { TimersDialog } from './components/TimersDialog';
 import type { TimerItem } from './components/TimersDialog';
 import { SceneBoard } from './components/SceneBoard';
 import { SettingsPage } from './components/SettingsPage';
-import { SideNav, categoryOf, CATEGORY_META, type CategoryKind } from './components/SideNav';
+import { SideNav, categoryOf, CATEGORY_KINDS, CATEGORY_META, type CategoryKind } from './components/SideNav';
 import { WeatherCompact, WeatherDialog, WeatherHero } from './components/Weather';
 import { getMe, logout, putLayout } from './consoleApi';
 import { allowedSizesForDevice, favoriteIds, favoriteSizeKey, fromServerLayout, layoutKey, orderedDevices, orderedRooms, readLayout, saveLayout, tileSizeForDevice, toServerLayout, toggleFavorite } from './layout';
@@ -460,15 +460,20 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     setLayout((previous) => toggleFavorite(previous, id));
   }
 
+  /** 某个类别（或「全部」）下的设备；「全部」按类型顺序拼接，供类别页分组展示与排序使用。 */
+  function categoryDevices(kind: CategoryKind): Device[] {
+    if (kind === 'all') return CATEGORY_KINDS.flatMap((entry) => categoryDevices(entry));
+    const filtered = home.devices.filter((device) => categoryOf(device) === kind);
+    const savedOrder = layout.order[`category/${kind}`];
+    const ordered = savedOrder ? orderedDevices(filtered, savedOrder) : filtered;
+    if (!savedOrder) ordered.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+    return ordered;
+  }
+
   /** 当前页可排序的设备：全屋页为常用设备，房间页为该房间设备，类别页为该类别所有设备。 */
   function sortable(): { scope: string; ids: string[] } {
     if (page === 'home') return { scope: favoritesScope, ids: favoriteDevices.map((device) => device.id) };
-    if (page === 'category') {
-      const filtered = home.devices.filter((device) => categoryOf(device) === selectedCategoryKind);
-      const ordered = orderedDevices(filtered, layout.order[`category/${selectedCategoryKind}`]);
-      if (!layout.order[`category/${selectedCategoryKind}`]) ordered.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
-      return { scope: `category/${selectedCategoryKind}`, ids: ordered.map((device) => device.id) };
-    }
+    if (page === 'category') return { scope: `category/${selectedCategoryKind}`, ids: categoryDevices(selectedCategoryKind).map((device) => device.id) };
     return { scope: selectedRoom.id, ids: selectedRoomDevices.map((device) => device.id) };
   }
 
@@ -594,7 +599,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   return (
     <div className={compactActive ? 'app-shell app-shell--compact' : 'app-shell'}>
       <SideNav home={home} homeTitle={homeTitle} current={page === 'room' ? { roomId: selectedRoom.id } : page === 'category' ? { category: selectedCategoryKind } : page} now={now} onHome={openHome} onOpenRoom={openRoom} onOpenCategory={openCategory} onSettings={requestSettings} onEditRooms={canControl ? () => setRoomOrderOpen(true) : undefined} onOpenMusic={musicUrl ? openMusic : undefined} people={server.status?.people} occupancy={occupancy} brandTitle={server.status?.brandTitle} />
-      <header className={`hero${page === 'home' ? ' hero--home' : ''}${page === 'settings' ? ' hero--settings' : ''}${heroTone ? ` hero--weather weather--${heroTone}` : ''}`}>
+      <header className={`hero${page === 'home' ? ' hero--home' : ''}${page === 'room' ? ' hero--room' : ''}${page === 'settings' ? ' hero--settings' : ''}${heroTone ? ` hero--weather weather--${heroTone}` : ''}`}>
         {page === 'room' && <RoomScene key={selectedRoom.id} room={selectedRoom} lit={selectedRoomLitCount > 0} />}
         <div className="hero__top">
           <span className="hero__brand">{homeGreeting(now)}</span>
@@ -615,7 +620,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                   ? (homeSubline
                     ? <p><button type="button" className="hero__subline-button" onClick={() => setAlmanacOpen(true)} title="点击查看农历详情">{homeSubline}</button><span className="hero__sun" title="当天日出日落">🌅 {sunrise} · 🌇 {sunset}</span></p>
                     : null)
-                  : <p>{page === 'room' ? '房间状态与设备控制' : page === 'category' ? '按类别查看所有房间的同类设备' : page === 'settings' ? '管理密码、Home Assistant 连接与控制权限' : '内嵌音乐界面'}</p>}
+                  : <p>{page === 'room' ? '房间状态与设备控制' : page === 'category' ? (selectedCategoryKind === 'all' ? '按设备类型分组查看全部设备' : '按类别查看所有房间的同类设备') : page === 'settings' ? '管理密码、Home Assistant 连接与控制权限' : '内嵌音乐界面'}</p>}
               </div>
             </div>
             {compactActive && page === 'home' ? (
@@ -719,12 +724,43 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         {page === 'settings' && <SettingsPage status={server.status} user={authenticated.user} ingress={authenticated.ingress} firstRun={authenticated.firstRun} onLogout={onLogout} onAuthenticated={onAuthenticated} onOpenSetup={onOpenSetup} onExpired={settingsExpired} />}
         {page === 'music' && (musicUrl ? <MusicPage url={musicUrl} /> : <div className="empty-room"><p>还没有配置音乐界面，请到 设置 → 音乐 中填写地址。</p></div>)}
         {page === 'category' && (() => {
-          const filtered = home.devices.filter((device) => categoryOf(device) === selectedCategoryKind);
-          const Icon = CATEGORY_META[selectedCategoryKind].Icon;
-          const savedOrder = layout.order[`category/${selectedCategoryKind}`];
-          const ordered = savedOrder
-            ? orderedDevices(filtered, savedOrder)
-            : [...filtered].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true, sensitivity: 'base' }));
+          const kind = selectedCategoryKind;
+          const Icon = CATEGORY_META[kind].Icon;
+          // 「全部」：按设备类型分组展示所有设备，不参与拖动排序，保持每类的自然排序 / 已保存顺序。
+          if (kind === 'all') {
+            const groups = CATEGORY_KINDS
+              .map((entry) => ({ kind: entry, devices: categoryDevices(entry) }))
+              .filter((group) => group.devices.length > 0);
+            const total = groups.reduce((sum, group) => sum + group.devices.length, 0);
+            return (
+              <>
+                {groups.length === 0 ? (
+                  <div className="empty-room"><Icon size={36} aria-hidden="true" /><p>还没有可展示的设备。</p></div>
+                ) : (
+                  <section className="home-section category-all">
+                    <div className="section-heading">
+                      <h2><Icon size={18} />全部 <em>· {total} 个</em></h2>
+                      <div className="section-heading__actions">
+                        <span>{!canControl ? '只读模式，设备操作不会执行' : `${groups.length} 个类型，按类型分组展示`}</span>
+                      </div>
+                    </div>
+                    {groups.map((group) => {
+                      const GroupIcon = CATEGORY_META[group.kind].Icon;
+                      return (
+                        <div className="category-group" key={group.kind}>
+                          <h3 className="category-group__title"><GroupIcon size={17} aria-hidden="true" />{CATEGORY_META[group.kind].label}<em>· {group.devices.length} 个</em></h3>
+                          <AdaptiveGrid className="tile-grid tile-grid--category" scale={tileScale}>
+                            {group.devices.map((device) => card(device, roomOf(device), { size: tileSizeForDevice(device, layout.sizes[device.id]) }))}
+                          </AdaptiveGrid>
+                        </div>
+                      );
+                    })}
+                  </section>
+                )}
+              </>
+            );
+          }
+          const ordered = categoryDevices(kind);
           function categoryCard(device: Device, index: number) {
             return card(device, roomOf(device), {
               size: tileSizeForDevice(device, layout.sizes[device.id]),
@@ -737,12 +773,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               {ordered.length === 0 ? (
                 <div className="empty-room">
                   <Icon size={36} aria-hidden="true" />
-                  <p>当前没有「{CATEGORY_META[selectedCategoryKind].label}」类设备</p>
+                  <p>当前没有「{CATEGORY_META[kind].label}」类设备</p>
                 </div>
               ) : (
                 <section className="home-section">
                   <div className="section-heading">
-                    <h2><Icon size={18} />{CATEGORY_META[selectedCategoryKind].label} <em>· {ordered.length} 个</em></h2>
+                    <h2><Icon size={18} />{CATEGORY_META[kind].label} <em>· {ordered.length} 个</em></h2>
                     <div className="section-heading__actions">
                       <span>{!canControl ? '只读模式，设备操作不会执行' : editingLayout ? '拖动调整顺序，右下角切换尺寸' : '默认按名称自然排序，可编辑布局保存'}</span>
                       {canControl && editButton}

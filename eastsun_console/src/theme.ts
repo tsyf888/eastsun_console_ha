@@ -100,7 +100,7 @@ export function cachedAccent(): Accent {
 
 /**
  * UI 风格（设置 → 显示）：在主题与强调色之上换一套表面材质、圆角与阴影，可任意组合。
- * iOS17 经典即原有的毛玻璃外观，作为默认值不写 data-style 属性。
+ * iOS26 玻璃为默认风格（服务端 STYLES[0]），iOS17 经典保留为可选，选择后不写 data-style 属性。
  */
 export const STYLES = [
   { value: 'ios17', label: 'iOS17 经典', hint: '原有毛玻璃' },
@@ -112,6 +112,7 @@ export const STYLES = [
   { value: 'porcelain', label: '青瓷', hint: '青白釉面' },
   { value: 'neon', label: '霓虹夜', hint: '洋红青蓝发光' },
   { value: 'sand', label: '暖沙', hint: '哑光暖米色' },
+  { value: 'atelier', label: '雅致', hint: '克制高级哑光' },
 ] as const;
 export type Style = (typeof STYLES)[number]['value'];
 
@@ -121,7 +122,7 @@ function isStyle(value: unknown): value is Style {
   return STYLES.some((item) => item.value === value);
 }
 
-/** 写到根元素的 data-style（iOS17 经典为默认，不写属性），并记住给下次打开的首帧用。 */
+/** 写到根元素的 data-style（iOS17 经典不写属性），并记住给下次打开的首帧用。 */
 export function applyStyle(style: Style): void {
   if (style === 'ios17') delete document.documentElement.dataset.style;
   else document.documentElement.dataset.style = style;
@@ -135,8 +136,8 @@ export function applyStyle(style: Style): void {
 export function cachedStyle(): Style {
   try {
     const value = localStorage.getItem(styleCacheKey);
-    return isStyle(value) ? value : 'ios17';
+    return isStyle(value) ? value : 'glass26';
   } catch {
-    return 'ios17';
+    return 'glass26';
   }
 }

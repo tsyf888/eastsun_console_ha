@@ -3,14 +3,14 @@
   --bg: #0d0f11;
   --rail: #111316;
   --surface: #181b1f;
-  --surface-2: #22262b;
-  --surface-3: #2c3137;
+  --surface-2: #262b32;
+  --surface-3: #323942;
   --surface-on: #1d1c1a;
   --hairline: rgba(255, 255, 255, .06);
   --hairline-strong: rgba(255, 255, 255, .12);
   --highlight: inset 0 1px 0 rgba(255, 255, 255, .045);
   /* 毛玻璃（苹果 frosted glass）：卡片半透明 + 背景模糊，让 app-shell 的彩色氛围透出来 */
-  --glass: rgba(24, 27, 31, .66);
+  --glass: rgba(24, 27, 31, .7);
   --glass-strong: rgba(29, 32, 37, .82);
   --glass-blur: blur(24px) saturate(170%);
   --glass-border: rgba(255, 255, 255, .1);
@@ -18,7 +18,7 @@
   --shadow: 0 14px 30px -18px rgba(0, 0, 0, .85);
   --text: #f4f4f1;
   --text-2: #a8afb3;
-  --text-3: #6f777c;
+  --text-3: #838b91;
   --accent: #f4b764;
   --accent-rgb: 244, 183, 100;
   --accent-ink: #2b1f0f;
@@ -77,7 +77,7 @@
   --rail-glass: rgba(228, 226, 219, .85);
   --text: #1c1e20;
   --text-2: #52595e;
-  --text-3: #7d8388;
+  --text-3: #6c7378;
   --accent: #e0922c;
   --accent-rgb: 224, 146, 44;
   --accent-ink: #2b1f0f;
@@ -136,27 +136,27 @@
 /* ---------- UI 风格（设置 → 显示）：在主题与强调色之上覆盖表面材质、圆角、阴影与背景氛围 ---------- */
 /* iOS26 玻璃：超通透玻璃 + 超大圆角 + 极光光斑，卡片带玻璃内高光 */
 :root[data-style="glass26"] {
-  --radius: 32px;
-  --radius-sm: 21px;
+  --radius: 36px;
+  --radius-sm: 24px;
   --glass: rgba(52, 60, 74, .3);
   --glass-strong: rgba(40, 48, 62, .44);
   --glass-border: rgba(255, 255, 255, .3);
-  --glass-blur: blur(44px) saturate(235%);
-  --highlight: inset 0 1px 0 rgba(255, 255, 255, .36), inset 0 -1px 0 rgba(255, 255, 255, .07);
+  --glass-blur: blur(48px) saturate(245%);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .44), inset 0 -1px 0 rgba(255, 255, 255, .08);
   --sheen: rgba(255, 255, 255, .14);
   --hairline: rgba(255, 255, 255, .16);
   --hairline-strong: rgba(255, 255, 255, .3);
   --overlay: rgba(255, 255, 255, .07);
   --overlay-2: rgba(255, 255, 255, .14);
-  --shadow: 0 30px 64px -34px rgba(4, 10, 24, .95);
+  --shadow: 0 34px 70px -34px rgba(4, 10, 24, .95);
   --rail-glass: rgba(18, 24, 34, .55);
 }
 :root[data-theme="light"][data-style="glass26"] {
   --glass: rgba(255, 255, 255, .56);
   --glass-strong: rgba(255, 255, 255, .78);
   --glass-border: rgba(255, 255, 255, .86);
-  --glass-blur: blur(44px) saturate(200%);
-  --shadow: 0 30px 60px -30px rgba(55, 45, 28, .5);
+  --glass-blur: blur(48px) saturate(210%);
+  --shadow: 0 34px 66px -30px rgba(55, 45, 28, .5);
   --sheen: rgba(255, 255, 255, .98);
   --overlay: rgba(30, 28, 20, .04);
   --overlay-2: rgba(30, 28, 20, .1);
@@ -172,13 +172,53 @@
     var(--bg);
   background-attachment: fixed;
 }
+/* 卡片：斜向高光斑 + 冷色反光 + 强调色渗光三层叠加，边缘玻璃 rim 更亮 */
 :root[data-style="glass26"] .tile {
   border-color: var(--glass-border);
   background:
-    linear-gradient(155deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .02) 46%, rgba(255, 255, 255, .08)),
+    linear-gradient(155deg, rgba(255, 255, 255, .28), rgba(255, 255, 255, .02) 44%, rgba(255, 255, 255, .1) 100%),
+    radial-gradient(150% 120% at 0% 0%, rgba(var(--accent-rgb), .1), transparent 55%),
     var(--glass);
-  box-shadow: var(--highlight), var(--shadow), inset 0 0 60px rgba(255, 255, 255, .04);
+  box-shadow:
+    var(--highlight),
+    var(--shadow),
+    inset 0 0 0 1px rgba(255, 255, 255, .12),
+    inset 0 0 74px rgba(255, 255, 255, .05);
 }
+:root[data-theme="light"][data-style="glass26"] .tile {
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, .72), rgba(255, 255, 255, .16) 46%, rgba(255, 255, 255, .5) 100%),
+    radial-gradient(150% 120% at 0% 0%, rgba(var(--accent-rgb), .08), transparent 55%),
+    var(--glass);
+  box-shadow:
+    var(--highlight),
+    var(--shadow),
+    inset 0 0 0 1px rgba(255, 255, 255, .6);
+}
+/* 卡内控件：iOS26 的半透明玻璃胶囊 */
+:root[data-style="glass26"] .tile__power,
+:root[data-style="glass26"] .tile__chip,
+:root[data-style="glass26"] .media-card__actions button,
+:root[data-style="glass26"] .climate-card__actions button {
+  border: 1px solid rgba(255, 255, 255, .26);
+  background: rgba(255, 255, 255, .14);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
+}
+:root[data-style="glass26"] .tile__power,
+:root[data-style="glass26"] .media-card__actions button,
+:root[data-style="glass26"] .climate-card__actions button { border-radius: 999px; }
+:root[data-theme="light"][data-style="glass26"] .tile__power,
+:root[data-theme="light"][data-style="glass26"] .tile__chip,
+:root[data-theme="light"][data-style="glass26"] .media-card__actions button,
+:root[data-theme="light"][data-style="glass26"] .climate-card__actions button {
+  border-color: rgba(30, 28, 20, .12);
+  background: rgba(255, 255, 255, .68);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+/* 侧栏：玻璃浮起，与内容区拉开层次 */
+:root[data-style="glass26"] .side-nav { box-shadow: 18px 0 44px -30px rgba(4, 10, 24, .8); }
 
 /* 果冻多彩：高饱和渐变背景 + 每张卡片不同色调的糖浆渐变 */
 :root[data-style="jelly"] {
@@ -563,6 +603,62 @@
   box-shadow: var(--highlight), var(--shadow), inset 0 0 0 1px rgba(230, 208, 170, .06);
 }
 
+/* 雅致：克制高级的哑光纸面 —— 小圆角、近不透明表面、细描边、零光斑 */
+:root[data-style="atelier"] {
+  --bg: #0e0f10;
+  --rail: #141516;
+  --radius: 18px;
+  --radius-sm: 11px;
+  --glass: rgba(27, 28, 30, .94);
+  --glass-strong: rgba(32, 33, 35, .97);
+  --glass-border: rgba(255, 255, 255, .07);
+  --glass-blur: blur(10px) saturate(115%);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .05);
+  --sheen: rgba(255, 255, 255, .012);
+  --hairline: rgba(255, 255, 255, .05);
+  --hairline-strong: rgba(255, 255, 255, .1);
+  --overlay: rgba(255, 255, 255, .03);
+  --overlay-2: rgba(255, 255, 255, .06);
+  --shadow: 0 16px 34px -24px rgba(0, 0, 0, .9);
+  --rail-glass: rgba(17, 18, 19, .92);
+}
+:root[data-theme="light"][data-style="atelier"] {
+  --bg: #eae7e1;
+  --rail: #e6e3dc;
+  --glass: rgba(252, 251, 248, .95);
+  --glass-strong: rgba(255, 255, 254, .99);
+  --glass-border: rgba(40, 36, 28, .1);
+  --glass-blur: blur(10px) saturate(110%);
+  --shadow: 0 16px 32px -22px rgba(60, 50, 34, .38);
+  --highlight: inset 0 1px 0 rgba(255, 255, 255, .7);
+  --sheen: rgba(255, 255, 255, .55);
+  --hairline: rgba(40, 36, 28, .09);
+  --hairline-strong: rgba(40, 36, 28, .16);
+  --overlay: rgba(40, 36, 28, .035);
+  --overlay-2: rgba(40, 36, 28, .08);
+  --rail-glass: rgba(236, 233, 226, .92);
+}
+:root[data-style="atelier"] .app-shell,
+:root[data-theme="light"][data-style="atelier"] .app-shell {
+  background:
+    radial-gradient(900px 520px at 12% -18%, rgba(var(--accent-rgb), .1), transparent 62%),
+    var(--bg);
+  background-attachment: fixed;
+}
+:root[data-style="atelier"] .tile {
+  background: var(--glass);
+  box-shadow: var(--highlight), var(--shadow);
+}
+:root[data-style="atelier"] .tile--active {
+  box-shadow: var(--highlight), var(--shadow), inset 0 0 0 1px rgba(var(--accent-rgb), .35);
+}
+:root[data-style="atelier"] .tile__power,
+:root[data-style="atelier"] .tile__chip,
+:root[data-style="atelier"] .media-card__actions button,
+:root[data-style="atelier"] .climate-card__actions button { border-radius: 10px; }
+:root[data-style="atelier"] .section-heading h2,
+:root[data-style="atelier"] .settings-card__heading h3 { letter-spacing: .01em; }
+
 :root[data-theme="light"] .weather--night { --wx: #6c62c8; }
 :root[data-theme="light"] .weather--cloud { --wx: #7a8794; }
 :root[data-theme="light"] .weather--rain { --wx: #2f7fd6; }
@@ -942,12 +1038,15 @@ strong { font-weight: 600; }
 .tile--hk .tile__note { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile--hk .tile__room { position: absolute; top: 7px; right: 10px; font-size: 10px; }
 .tile__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
-.tile__chip { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 13px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .25s, color .25s; }
+.tile__chip { display: grid; place-items: center; width: var(--card-glyph, 42px); height: var(--card-glyph, 42px); flex: none; border-radius: 14px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .25s, color .25s; }
 .tile--active .tile__chip { background: color-mix(in srgb, var(--glow) 18%, transparent); color: var(--glow); }
 .tile__icon { color: var(--accent); }
-.tile__room { color: var(--text-3); font-size: 11px; white-space: nowrap; }
+.tile__room { color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
 .tile-grid--room .tile__room { display: none; }
-.tile__power, .icon-button { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
+/* 卡片内的图标容器统一尺寸：左上主按钮 42px、圆角方块图标 42px、次要圆形按钮 40px，灯 / 影音 / 插座视觉重量一致。 */
+.tile { --card-glyph: 42px; --card-control: 40px; }
+.tile__power { display: grid; place-items: center; width: var(--card-glyph); height: var(--card-glyph); flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
+.icon-button { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
 .tile__power:hover:not(:disabled), .icon-button:hover { background: var(--surface-3); color: var(--text); }
 .tile__power:active:not(:disabled) { transform: scale(.92); }
 .tile__power:disabled { opacity: .45; }
@@ -955,8 +1054,9 @@ strong { font-weight: 600; }
 .tile--openable { cursor: pointer; }
 .tile .tile__power, .climate-card__power { position: relative; }
 .tile .tile__power::after, .climate-card__power::after { position: absolute; inset: -10px; border-radius: 50%; content: ''; }
-.tile__name { display: block; overflow-wrap: anywhere; font-size: 14px; font-weight: 600; line-height: 1.25; }
-.tile__note { display: block; margin-top: 3px; color: var(--text-2); font-size: 12px; line-height: 1.35; }
+.tile__name { display: block; overflow-wrap: anywhere; font-size: 14.5px; font-weight: 600; line-height: 1.25; }
+/* 状态文字统一为 text-2 / 12.5px：灯、影音、插座在同一距离下的可读性与视觉重量一致。 */
+.tile__note { display: block; margin-top: 3px; color: var(--text-2); font-size: 12.5px; line-height: 1.35; }
 .tile--active .tile__note { color: color-mix(in srgb, var(--glow) 55%, var(--text-2)); }
 
 /* ---------- Light card ---------- */
@@ -976,7 +1076,7 @@ strong { font-weight: 600; }
 .light-card__palette-trigger:disabled { opacity: .45; }
 .light-card__controls { display: grid; gap: 4px; min-width: 0; }
 .light-card__range { display: grid; grid-template-columns: 26px minmax(0, 1fr) 42px; align-items: center; gap: 8px; min-height: 36px; }
-.light-card__range output { color: var(--text-2); font-size: 11.5px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.light-card__range output { color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
 .light-card__control-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; }
 .light-card__control-icon--brightness { color: var(--accent); }
 .light-card__control-icon--temperature { color: #bcdcff; }
@@ -1116,22 +1216,22 @@ strong { font-weight: 600; }
 /* 播放内容缩略图背景：左淡右深的横向渐变压底，保证右侧控件可读（tile 的 isolate 使负 z-index 垫在卡片背景之上、内容之下） */
 .media-card__art { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(8, 10, 16, .14) 0%, rgba(8, 10, 16, .48) 55%, rgba(8, 10, 16, .82) 100%), var(--art) center / cover no-repeat; }
 .media-card__header, .media-card__footer { display: flex; align-items: center; gap: 10px; }
-.media-card__icon { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 13px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); }
+.media-card__icon { display: grid; place-items: center; width: var(--card-glyph); height: var(--card-glyph); flex: none; border-radius: 14px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); }
 .media-card.tile--active .media-card__icon { background: color-mix(in srgb, var(--glow) 18%, transparent); color: var(--glow); }
 .media-card__identity { flex: 1; min-width: 0; }
 .media-card__footer { justify-content: space-between; }
-.media-card__detail { min-width: 0; overflow: hidden; color: var(--text-3); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.media-card__detail { min-width: 0; overflow: hidden; color: var(--text-2); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .media-card__actions { display: flex; gap: 8px; flex: none; }
-.media-card__actions button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .18s, color .18s, transform .15s var(--ease); }
+.media-card__actions button { display: grid; place-items: center; width: var(--card-control); height: var(--card-control); padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .18s, color .18s, transform .15s var(--ease); }
 .media-card__actions button:hover:not(:disabled) { color: var(--text); }
 .media-card__actions button:active:not(:disabled) { transform: scale(.92); }
 .media-card__actions button[aria-pressed="true"] { color: var(--text); }
 .media-card__actions .media-card__play { background: var(--text); color: var(--bg); }
 .media-card__actions .media-card__play:hover:not(:disabled) { background: var(--text); color: var(--bg); opacity: .88; }
 .media-card__actions button:disabled { opacity: .35; }
-.media-card__volume { display: grid; grid-template-columns: 17px minmax(0, 1fr) 36px; align-items: center; gap: 9px; color: var(--text-3); }
+.media-card__volume { display: grid; grid-template-columns: 17px minmax(0, 1fr) 36px; align-items: center; gap: 9px; color: var(--text-2); }
 .media-card__volume input { width: 100%; min-width: 0; accent-color: var(--accent); }
-.media-card__volume output { font-size: 11px; font-variant-numeric: tabular-nums; text-align: right; }
+.media-card__volume output { font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
 .adaptive-grid[data-columns="1"] .media-card { padding: 10px; }
 .adaptive-grid[data-columns="1"] .media-card__icon { width: 34px; height: 34px; }
 .adaptive-grid[data-columns="1"] .media-card__actions button { width: 34px; height: 34px; }
@@ -1145,7 +1245,7 @@ strong { font-weight: 600; }
 .climate-card--auto { --tone: var(--accent); }
 .climate-card .tile__top { align-items: center; }
 .climate-card .tile__top > .tile__room { margin-left: auto; }
-.climate-card__power { display: grid; place-items: center; width: 44px; height: 44px; flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
+.climate-card__power { display: grid; place-items: center; width: var(--card-glyph); height: var(--card-glyph); flex: none; padding: 0; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .22s, color .22s, box-shadow .22s, transform .15s var(--ease); }
 .climate-card__power:hover:not(:disabled) { color: var(--text); }
 .climate-card__power:active:not(:disabled) { transform: scale(.92); }
 .climate-card__power[aria-pressed="true"] { background: var(--tone); color: #0f1216; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 6px 20px -6px var(--tone); }
@@ -1171,7 +1271,7 @@ strong { font-weight: 600; }
 .climate-card .tile__note { margin-top: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .climate-card__note--short { display: none !important; }
 .climate-card__actions { display: flex; gap: 8px; flex: none; }
-.climate-card__actions button { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid var(--hairline); border-radius: 50%; background: var(--surface-2); color: var(--text); box-shadow: var(--highlight); font-size: 18px; transition: background-color .18s, transform .15s var(--ease); }
+.climate-card__actions button { display: grid; place-items: center; width: var(--card-control); height: var(--card-control); padding: 0; border: 1px solid var(--hairline); border-radius: 50%; background: var(--surface-2); color: var(--text); box-shadow: var(--highlight); font-size: 18px; transition: background-color .18s, transform .15s var(--ease); }
 .climate-card__actions button:hover:not(:disabled) { background: var(--surface-3); }
 .climate-card__actions button:active:not(:disabled) { transform: scale(.92); }
 .climate-card__actions button[aria-pressed="true"] { border-color: transparent; background: var(--tone); color: #0f1216; }
@@ -1217,8 +1317,28 @@ strong { font-weight: 600; }
    否则会被 .climate-card .tile__top 的垂直居中压到 1×1 卡设定温度的位置上，出现文字重叠。 */
 .tile-grid--category .climate-card .tile__top > .tile__room { align-self: flex-start; max-width: 5.5em; margin: 1px 0 0 auto; overflow: hidden; line-height: 16px; text-overflow: ellipsis; }
 
-.empty-room { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); color: var(--text-2); }
-.empty-room p { margin: 0; }
+/* 类别页「全部」：按设备类型分组，组间拉开留白，组标题用图标 + 名称 + 数量的轻量层级 */
+.category-all .section-heading { margin-bottom: 18px; }
+.category-group + .category-group { margin-top: 30px; }
+.category-group__title { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; color: var(--text); font-size: 14.5px; font-weight: 600; letter-spacing: .01em; }
+.category-group__title svg { align-self: center; color: var(--text-2); }
+.category-group__title em { color: var(--text-3); font-size: 12.5px; font-style: normal; font-weight: 500; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .category-group + .category-group { margin-top: 24px; }
+  .category-group__title { margin-bottom: 10px; }
+}
+
+/* 空状态：与卡片同一套材质语言，图标、标题、说明三层收口，替换原来的一条虚线空条。 */
+.empty-room { display: flex; align-items: center; gap: 14px; padding: 22px 24px; border: 1px dashed var(--hairline-strong); border-radius: var(--radius); background: var(--overlay); color: var(--text-2); box-shadow: var(--highlight); }
+.empty-room > svg { flex: none; color: var(--text-3); }
+.empty-room__icon { display: grid; place-items: center; width: 48px; height: 48px; flex: none; border-radius: 16px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); }
+.empty-room__text { display: grid; gap: 3px; min-width: 0; }
+.empty-room strong { color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.35; }
+.empty-room p { margin: 0; color: var(--text-2); font-size: 12.5px; line-height: 1.5; }
+@media (max-width: 480px) {
+  .empty-room { align-items: flex-start; padding: 18px; gap: 12px; }
+  .empty-room__icon { width: 40px; height: 40px; border-radius: 13px; }
+}
 
 /* ---------- Room order dialog ---------- */
 .room-order { display: grid; gap: 18px; }
@@ -1399,6 +1519,8 @@ strong { font-weight: 600; }
 .settings-style__preview--neon i { border-radius: 2px; background: linear-gradient(90deg, #ff5cdc, #4fe8ff); opacity: .9; }
 .settings-style__preview--sand { border: 1px solid rgba(180, 148, 104, .45); border-radius: 12px; background: linear-gradient(160deg, #f6ead3, #e4d0ac); }
 .settings-style__preview--sand i { border-radius: 4px; background: #95744a; opacity: .66; }
+.settings-style__preview--atelier { border: 1px solid rgba(120, 112, 96, .34); border-radius: 7px; background: linear-gradient(160deg, #fcfbf8, #e7e4dd); }
+.settings-style__preview--atelier i { border-radius: 2px; background: #6d6a62; opacity: .5; }
 @media (max-width: 600px) {
   .settings-styles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings-style { gap: 8px; padding: 8px 9px; }
@@ -1804,18 +1926,22 @@ strong { font-weight: 600; }
 }
 
 /* ---------- 房间页页头右侧的线描场景 ---------- */
-/* 贴在页头右侧，从顶部到页头底部，位于文字之后，不占布局。 */
-.room-scene { position: absolute; top: 0; right: var(--gutter); bottom: 0; z-index: -1; width: min(45%, 380px); height: 100%; color: var(--text-3); overflow: visible; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%); mask-image: linear-gradient(90deg, transparent, #000 22%); }
+/* 固定在页头右下角、按 16:9 比例收口，不再拉满整个页头高度；左侧渐隐避开标题与状态行。 */
+.hero--room .hero__body { position: relative; z-index: 1; }
+.room-scene { position: absolute; top: auto; right: calc(var(--gutter) - 8px); bottom: 0; z-index: -1; width: min(34%, 330px); height: auto; aspect-ratio: 320 / 180; color: var(--text-3); overflow: visible; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 24%); mask-image: linear-gradient(90deg, transparent, #000 24%); }
 .room-scene__lines, .room-scene__lamp { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.room-scene__lines { opacity: .55; }
-.room-scene__floor { opacity: .45; }
-.room-scene__lamp { opacity: .65; transition: stroke .4s, opacity .4s; }
+.room-scene__lines { opacity: .5; }
+.room-scene__floor { opacity: .42; }
+.room-scene__lamp { opacity: .62; transition: stroke .4s, opacity .4s; }
 .room-scene__light { fill: var(--accent); opacity: 0; transition: opacity .5s; }
 .room-scene--lit .room-scene__lamp { stroke: var(--accent); opacity: 1; }
 .room-scene--lit .room-scene__light { opacity: .28; }
-:root[data-theme="light"] .room-scene__lines { opacity: .7; }
+:root[data-theme="light"] .room-scene__lines { opacity: .66; }
 :root[data-theme="light"] .room-scene--lit .room-scene__light { opacity: .35; }
-@media (max-width: 720px) {
+@media (max-width: 980px) {
+  .room-scene { width: min(30%, 260px); opacity: .86; }
+}
+@media (max-width: 860px) {
   .room-scene { display: none; }
 }
 

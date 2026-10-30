@@ -61,5 +61,13 @@ export function DeviceCard({ device, room, tile, actions, onOpenClimate, seasonL
 }
 
 export function EmptyRoomCard({ name }: { name: string }) {
-  return <div className="empty-room"><span className="tile__chip"><Home size={20} /></span><p>{name}目前只有模拟清单中已确认的设备。</p></div>;
+  return (
+    <div className="empty-room">
+      <span className="empty-room__icon" aria-hidden="true"><Home size={22} /></span>
+      <div className="empty-room__text">
+        <strong>{name}暂无设备</strong>
+        <p>可在「设置 → 房间」中添加设备，保存后会自动显示在这里。</p>
+      </div>
+    </div>
+  );
 }

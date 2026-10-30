@@ -27,7 +27,7 @@ DEFAULT_PIN = "1234"
 THEMES = ("dark", "light", "auto")
 ACCENTS = ("amber", "coral", "rose", "violet", "sky", "teal", "green",
            "blue", "indigo", "purple", "pink", "orange", "yellow", "mint", "cyan")  # 强调色，第一个为默认
-STYLES = ("glass26", "ios17", "jelly", "ink", "helm", "courtyard", "porcelain", "neon", "sand")  # UI 风格，第一个（iOS26 玻璃）为默认
+STYLES = ("glass26", "ios17", "jelly", "ink", "helm", "courtyard", "porcelain", "neon", "sand", "atelier")  # UI 风格，第一个（iOS26 玻璃）为默认
 DEFAULT_HOME_TITLE = "我的家庭"
 HOME_TITLE_MAX = 12
 DEFAULT_HOME_SUBTITLE = ""

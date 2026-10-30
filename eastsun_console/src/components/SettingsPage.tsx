@@ -805,7 +805,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             <div className="settings-card__heading"><span className="tile__chip"><Sparkles size={20} /></span><div><h3>风格</h3><p>所有屏幕共用，可与主题、强调色任意组合。更换的是卡片材质、圆角、阴影与背景氛围，设备状态色和告警色仍按含义保持不变。</p></div></div>
             <div className="settings-styles" role="radiogroup" aria-label="界面风格">
               {STYLES.map(({ value, label, hint }) => {
-                const current = (settings.style ?? 'ios17') === value;
+                const current = (settings.style ?? 'glass26') === value;
                 return (
                   <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={async () => { if (current) return; if (await save({ style: value }, setThemeMessage, `界面风格已切换为${label}`)) applyStyle(value); }}>
                     <span className={`settings-style__preview settings-style__preview--${value}`} aria-hidden="true"><i /><i /><i /></span>

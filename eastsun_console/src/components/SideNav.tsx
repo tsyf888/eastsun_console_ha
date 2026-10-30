@@ -1,4 +1,4 @@
-import { ArrowUpDown, House, Music, Settings, Lightbulb, Power, AirVent, Blinds, Fan, Wind, Radio, Camera, ShieldAlert, Bot } from 'lucide-react';
+import { ArrowUpDown, House, Music, Settings, Lightbulb, Power, AirVent, Blinds, Fan, Wind, Radio, Camera, ShieldAlert, Bot, LayoutGrid } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
 import { apiPath } from '../consoleApi';
 import type { PersonStatus } from '../consoleClient';
@@ -7,8 +7,8 @@ import { getRoomActivity } from '../selectors';
 import { formatTime } from '../time';
 import type { Device, HomeState } from '../types';
 
-/** 设备类型分组：把 climate + heating 合并为温控，其余按 kind 单独分组。 */
-export type CategoryKind = 'light' | 'switch' | 'climate' | 'fan' | 'cover' | 'media' | 'camera' | 'safety' | 'sensor' | 'vacuum';
+/** 设备类型分组：把 climate + heating 合并为温控，其余按 kind 单独分组；all 为类别页的「全部」入口。 */
+export type CategoryKind = 'all' | 'light' | 'switch' | 'climate' | 'fan' | 'cover' | 'media' | 'camera' | 'safety' | 'sensor' | 'vacuum';
 
 /** 把 Device 的原始 kind 映射到导航栏里的类别；不识别的返回 null（如纯 sensor/battery 不进导航）。 */
 export function categoryOf(device: Device): CategoryKind | null {
@@ -27,6 +27,7 @@ export function categoryOf(device: Device): CategoryKind | null {
 }
 
 export const CATEGORY_META: Record<CategoryKind, { label: string; short: string; Icon: typeof Lightbulb }> = {
+  all:      { label: '全部',       short: '全', Icon: LayoutGrid },
   light:    { label: '灯',         short: '灯', Icon: Lightbulb },
   switch:   { label: '开关',       short: '开', Icon: Power },
   climate:  { label: '空调',  short: '温', Icon: AirVent },
@@ -38,6 +39,9 @@ export const CATEGORY_META: Record<CategoryKind, { label: string; short: string;
   sensor:   { label: '传感器',     short: '感', Icon: Wind },
   vacuum:   { label: '扫地机',     short: '扫', Icon: Bot },
 };
+
+/** 具体设备类型的固定顺序（不含「全部」），类别页按此顺序分组展示。 */
+export const CATEGORY_KINDS: CategoryKind[] = ['light', 'switch', 'climate', 'fan', 'cover', 'media', 'camera', 'safety', 'sensor', 'vacuum'];
 
 interface SideNavProps {
   home: HomeState;
@@ -79,9 +83,11 @@ export function SideNav({ home, homeTitle, current, now, onHome, onOpenRoom, onO
       const kind = categoryOf(device);
       if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1);
     }
-    return (Object.keys(CATEGORY_META) as CategoryKind[])
+    const entries = CATEGORY_KINDS
       .map((kind) => ({ kind, count: counts.get(kind) ?? 0 }))
       .filter((entry) => entry.count > 0);
+    const total = entries.reduce((sum, entry) => sum + entry.count, 0);
+    return total > 0 ? [{ kind: 'all' as CategoryKind, count: total }, ...entries] : [];
   }, [home.devices]);
 
   useEffect(() => {
