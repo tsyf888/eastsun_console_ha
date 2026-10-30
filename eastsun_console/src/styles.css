@@ -195,8 +195,8 @@
     var(--shadow),
     inset 0 0 0 1px rgba(255, 255, 255, .6);
 }
-/* 卡内控件：iOS26 的半透明玻璃胶囊 */
-:root[data-style="glass26"] .tile__power,
+/* 卡内图标：设备图标按钮（.tile__power）沿用与其他风格一致的实底 surface-2，不再半透明 */
+/* 状态胶囊与操作按钮：保留 iOS26 的半透明玻璃质感 */
 :root[data-style="glass26"] .tile__chip,
 :root[data-style="glass26"] .media-card__actions button,
 :root[data-style="glass26"] .climate-card__actions button {
@@ -206,10 +206,8 @@
   backdrop-filter: blur(12px) saturate(180%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3);
 }
-:root[data-style="glass26"] .tile__power,
 :root[data-style="glass26"] .media-card__actions button,
 :root[data-style="glass26"] .climate-card__actions button { border-radius: 999px; }
-:root[data-theme="light"][data-style="glass26"] .tile__power,
 :root[data-theme="light"][data-style="glass26"] .tile__chip,
 :root[data-theme="light"][data-style="glass26"] .media-card__actions button,
 :root[data-theme="light"][data-style="glass26"] .climate-card__actions button {
@@ -2345,6 +2343,28 @@ button.timer-block__meta { width: 100%; padding: 0; border: 0; background: none;
 .timer-block__presets button:active { background: rgba(var(--accent-rgb), .22); }
 .timer-block__start { border: none; border-radius: 12px; padding: 10px 0; background: var(--accent); color: var(--accent-ink, #fff); font-size: 14px; font-weight: 600; cursor: pointer; }
 .timer-block__start:disabled { opacity: .4; cursor: default; }
+
+/* ---------- 打开态对比强化（iOS26 玻璃已在上方使用专用规则） ---------- */
+/* 其他所有风格：打开时卡片染上设备自身颜色，边框、内描边与光晕一起加强，和关闭态拉开差距。 */
+:root:not([data-style="glass26"]) .tile--active {
+  border-color: color-mix(in srgb, var(--glow) 55%, var(--glass-border));
+  background-color: color-mix(in srgb, var(--glow) 12%, var(--surface-on));
+  box-shadow:
+    var(--highlight),
+    inset 0 0 0 1px color-mix(in srgb, var(--glow) 28%, transparent),
+    var(--shadow),
+    0 0 40px -10px color-mix(in srgb, var(--glow) 68%, transparent);
+}
+:root:not([data-style="glass26"]) .tile--active::before {
+  background: radial-gradient(130% 115% at 0% 0%, var(--glow), transparent 64%);
+  opacity: calc(var(--glow-strength) * 1.9);
+}
+/* 卡内状态胶囊同步染色，打开时一眼可辨 */
+:root:not([data-style="glass26"]) .tile--active .tile__chip {
+  background: color-mix(in srgb, var(--glow) 20%, var(--surface-2));
+  color: var(--glow);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--glow) 35%, transparent);
+}
 
 /* ---------- 开关 / 电视设置弹窗：大图标代表开关本体 ---------- */
 .switch-detail-dialog__body { display: grid; justify-items: center; gap: 8px; padding: 18px 0 6px; }
