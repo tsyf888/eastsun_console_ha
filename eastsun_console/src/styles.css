@@ -1714,6 +1714,8 @@ strong { font-weight: 600; }
   .main-content { padding: 22px 18px 28px; }
   .section-heading { align-items: flex-start; }
   .section-heading > span { display: none; }
+  /* 手机上标题里的数量字号更接近标题，颜色提亮一档，避免数字显得偏小、像没对齐 */
+  .section-heading h2 em { font-size: 14px; color: var(--text-2); }
   /* 手机例外：列数照常按格子宽度计算，但各列平分铺满整行（与标题左右对齐），行高保持格子高度；卡片内容仍按格子缩放。 */
   .adaptive-grid { grid-template-columns: repeat(var(--grid-columns), minmax(0, 1fr)); }
   /* 顶部状态标签已显示亮灯数量，手机上标题旁不再重复。 */
