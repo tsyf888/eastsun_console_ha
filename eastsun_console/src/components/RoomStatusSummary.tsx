@@ -1,6 +1,6 @@
 import { BatteryWarning, DoorOpen, Droplets, Fan, Hourglass, Lightbulb, PersonStanding, Power, Radar, ShieldAlert, Thermometer, Waves, Wind } from 'lucide-react';
 import { climateSummaryTone, isActiveAlert, isClimate, isLit, isOpenDoor } from '../selectors';
-import type { HomeState, SafetyDevice } from '../types';
+import type { Device, HomeState, SafetyDevice } from '../types';
 import type { ActiveListRequest } from './ActiveDevicesDialog';
 
 const lowBatteryThreshold = 20;
@@ -42,6 +42,30 @@ export function RoomStatusSummary({ home, roomId, onOpen, onOpenTimers }: { home
         : <span key={device.id} className="status-pill status-pill--warning">{device.kind === 'heating' ? <Waves size={15} /> : <Wind size={15} />}{device.name}不可用</span>)}
       {lowBatteries.length > 0 && <span className="status-pill status-pill--warning"><BatteryWarning size={15} />低电量 {lowBatteries.length} 个设备</span>}
       {unknownBatteries.length > 0 && <span className="status-pill status-pill--warning"><BatteryWarning size={15} />电池状态未知 {unknownBatteries.length} 个设备</span>}
+    </div>
+  );
+}
+
+/**
+ * 类别详情页顶部的状态条：与房间页一致，把正在运行的设备按类型汇总成按钮。
+ * 点按钮打开 ActiveDevicesDialog（不限定房间），可逐个开关或一键全部关闭。
+ */
+export function CategoryStatusSummary({ devices, onOpen }: { devices: Device[]; onOpen: (request: ActiveListRequest) => void }) {
+  const visible = devices.filter((device) => !device.hidden);
+  const lit = visible.filter(isLit).length;
+  const runningFans = visible.filter((device) => device.kind === 'fan' && device.available && device.on).length;
+  const runningSwitches = visible.filter((device) => device.kind === 'switch' && device.available && device.on).length;
+  const activeClimate = visible.filter(isClimate).filter((device) => device.available && device.on);
+  const acCount = activeClimate.filter((device) => device.kind === 'climate').length;
+  const heatingCount = activeClimate.filter((device) => device.kind === 'heating').length;
+  if (lit === 0 && runningFans === 0 && runningSwitches === 0 && acCount === 0 && heatingCount === 0) return null;
+  return (
+    <div className="status-row" aria-label="类别状态概览">
+      {lit > 0 && <button type="button" className="status-pill status-pill--light status-pill--button" onClick={() => onOpen({ kind: 'light' })}><Lightbulb size={15} />{lit} 盏灯亮</button>}
+      {acCount > 0 && <button type="button" className="status-pill status-pill--cool status-pill--button" onClick={() => onOpen({ kind: 'climate' })}><Wind size={15} />{acCount} 个空调开启</button>}
+      {heatingCount > 0 && <button type="button" className="status-pill status-pill--heat status-pill--button" onClick={() => onOpen({ kind: 'heating' })}><Waves size={15} />{heatingCount} 个制热开启</button>}
+      {runningFans > 0 && <button type="button" className="status-pill status-pill--cool status-pill--button" onClick={() => onOpen({ kind: 'fan' })}><Fan size={15} />{runningFans} 台风扇开启</button>}
+      {runningSwitches > 0 && <button type="button" className="status-pill status-pill--button" onClick={() => onOpen({ kind: 'switch' })}><Power size={15} />{runningSwitches} 个开关打开</button>}
     </div>
   );
 }

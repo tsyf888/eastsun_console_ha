@@ -1,5 +1,5 @@
 name: EastSun Console
-version: "1.2.6"
+version: "1.2.7"
 slug: eastsun_console
 description: 轻量家居控制台：内嵌于 Home Assistant 侧边栏，自动连接本机 HA，无需配置令牌。
 url: https://github.com/tsyf888/eastsun_console_ha

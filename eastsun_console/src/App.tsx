@@ -15,7 +15,7 @@ import { LoginPage, SetupPage } from './components/AuthPages';
 import { MusicPage } from './components/MusicPage';
 import { RoomOrderDialog } from './components/RoomOrderDialog';
 import { RoomScene } from './components/RoomScene';
-import { RoomStatusSummary } from './components/RoomStatusSummary';
+import { CategoryStatusSummary, RoomStatusSummary } from './components/RoomStatusSummary';
 import { TimersDialog } from './components/TimersDialog';
 import type { TimerItem } from './components/TimersDialog';
 import { SceneBoard } from './components/SceneBoard';
@@ -479,11 +479,17 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
 
   function moveDevice(id: string, direction: -1 | 1) {
     const { scope, ids } = sortable();
+    moveWithin(scope, ids, id, direction);
+  }
+
+  /** 在指定作用域内移动设备：类别「全部」页按类型分组编辑时，每组各自保存顺序。 */
+  function moveWithin(scope: string, ids: string[], id: string, direction: -1 | 1) {
     const index = ids.indexOf(id);
     const next = index + direction;
     if (index < 0 || next < 0 || next >= ids.length) return;
-    [ids[index], ids[next]] = [ids[next], ids[index]];
-    reorder(scope, ids);
+    const reordered = [...ids];
+    [reordered[index], reordered[next]] = [reordered[next], reordered[index]];
+    reorder(scope, reordered);
   }
 
   function startDrag(id: string, event: PointerEvent<HTMLElement>) {
@@ -492,14 +498,14 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     drag.start(id, scope, ids, event);
   }
 
-  /** 编辑布局时共用的排序属性。 */
-  function editingTile(device: Device, index: number, total: number): Omit<TilePlacement, 'size'> {
+  /** 编辑布局时共用的排序属性；传入 context 时按该作用域单独排序（类别「全部」页按类型分组用）。 */
+  function editingTile(device: Device, index: number, total: number, context?: { scope: string; ids: string[] }): Omit<TilePlacement, 'size'> {
     return {
       editing: editingLayout,
       index,
       total,
-      onMove: moveDevice,
-      onDragStart: startDrag,
+      onMove: (id, direction) => { if (context) moveWithin(context.scope, context.ids, id, direction); else moveDevice(id, direction); },
+      onDragStart: (id, event) => { if (context) { if (editingLayout) drag.start(id, context.scope, [...context.ids], event); } else startDrag(id, event); },
       onFavoriteToggle: changeFavorite,
       favorite: favorites.includes(device.id),
       dragging: drag.view?.id === device.id,
@@ -631,6 +637,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             ) : (
               <>
                 {page === 'room' && <RoomStatusSummary home={home} roomId={selectedRoom.id} onOpen={setActiveList} onOpenTimers={() => setTimersOpen(true)} />}
+                {page === 'category' && <CategoryStatusSummary devices={categoryDevices(selectedCategoryKind)} onOpen={setActiveList} />}
                 {page === 'home' && <HomeStatusSummary home={home} onOpen={setActiveList} onOpenBattery={() => setBatteryOpen(true)} onOpenTimers={() => setTimersOpen(true)} timersCount={timerItems.length} batteryEnabled={server.custom?.battery?.enabled !== false} />}
               </>
             )}
@@ -741,16 +748,22 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                     <div className="section-heading">
                       <h2><Icon size={18} />全部 <em>· {total} 个</em></h2>
                       <div className="section-heading__actions">
-                        <span>{!canControl ? '只读模式，设备操作不会执行' : `${groups.length} 个类型，按类型分组展示`}</span>
+                        <span>{!canControl ? '只读模式，设备操作不会执行' : editingLayout ? '拖动调整各类型内的顺序，右下角切换尺寸' : `${groups.length} 个类型，按类型分组展示，可编辑布局保存`}</span>
+                        {canControl && editButton}
                       </div>
                     </div>
                     {groups.map((group) => {
                       const GroupIcon = CATEGORY_META[group.kind].Icon;
+                      const ids = group.devices.map((device) => device.id);
                       return (
                         <div className="category-group" key={group.kind}>
                           <h3 className="category-group__title"><GroupIcon size={17} aria-hidden="true" />{CATEGORY_META[group.kind].label}<em>· {group.devices.length} 个</em></h3>
                           <AdaptiveGrid className="tile-grid tile-grid--category" scale={tileScale}>
-                            {group.devices.map((device) => card(device, roomOf(device), { size: tileSizeForDevice(device, layout.sizes[device.id]) }))}
+                            {group.devices.map((device, index) => card(device, roomOf(device), {
+                              size: tileSizeForDevice(device, layout.sizes[device.id]),
+                              onSizeChange: changeSize,
+                              ...editingTile(device, index, group.devices.length, { scope: `category/${group.kind}`, ids }),
+                            }))}
                           </AdaptiveGrid>
                         </div>
                       );
