@@ -138,7 +138,7 @@
 :root[data-style="glass26"] {
   --radius: 32px;
   --radius-sm: 21px;
-  --glass: rgba(52, 60, 74, .24);
+  --glass: rgba(52, 60, 74, .3);
   --glass-strong: rgba(40, 48, 62, .44);
   --glass-border: rgba(255, 255, 255, .3);
   --glass-blur: blur(44px) saturate(235%);
@@ -152,10 +152,10 @@
   --rail-glass: rgba(18, 24, 34, .55);
 }
 :root[data-theme="light"][data-style="glass26"] {
-  --glass: rgba(255, 255, 255, .46);
-  --glass-strong: rgba(255, 255, 255, .7);
-  --glass-border: rgba(255, 255, 255, .9);
-  --glass-blur: blur(44px) saturate(215%);
+  --glass: rgba(255, 255, 255, .56);
+  --glass-strong: rgba(255, 255, 255, .78);
+  --glass-border: rgba(255, 255, 255, .86);
+  --glass-blur: blur(44px) saturate(200%);
   --shadow: 0 30px 60px -30px rgba(55, 45, 28, .5);
   --sheen: rgba(255, 255, 255, .98);
   --overlay: rgba(30, 28, 20, .04);
@@ -1721,6 +1721,10 @@ strong { font-weight: 600; }
 /* 首页：天气占页头右侧整个高度，连接状态悬浮在其上 */
 /* 所有页面页头同一最小高度（首页按天气卡的高度），切换“我的家庭”与各房间时下方内容不跳动；状态标签换行时才会更高。 */
 .hero { min-height: 232px; }
+/* 未配置天气时，不再为右下角的空提示预留 60% 宽度：给时间/状态标签让出空间，避免首屏左挤右空。 */
+@media (min-width: 721px) {
+  .hero--home:has(> .weather-hero--empty) { --weather-w: min(320px, 38%); }
+}
 /* 设置页没有状态标签，也不参与上下滑动切换，页头按内容高度即可。 */
 .hero.hero--settings { min-height: 0; }
 .hero--home .hero__top { position: relative; z-index: 2; }
@@ -1764,7 +1768,7 @@ strong { font-weight: 600; }
   /* 手机：顶栏 36 + 标题区（上边距 22、标题 33、说明 26）+ 一行状态标签 52 + 上下内边距，各页一致；安全区另加。 */
   .hero { min-height: calc(190px + env(safe-area-inset-top)); }
   .hero--home > .weather-hero:not(.weather-hero--empty) { display: none; }
-  .hero--home > .weather-hero--empty { position: relative; bottom: auto; margin-top: 12px; }
+  .hero--home > .weather-hero--empty { position: relative; bottom: auto; width: auto; max-width: 100%; align-self: stretch; margin-top: 10px; min-height: 40px; padding: 8px 14px; }
   .weather-compact { display: flex; }
   .weather-hero { justify-content: space-between; gap: 16px; padding: 12px 4px; }
   .weather-hero__reading strong { font-size: 52px; }
@@ -1778,7 +1782,7 @@ strong { font-weight: 600; }
   .hero--home .hero__brand { display: none; }
   .hero--home .hero__title { display: none; }
   /* 农历与日出日落同一行：农历超出时省略号截断，日出日落始终完整靠右 */
-  .hero--home .hero__almanac { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 0; min-width: 0; color: var(--text-2); font-size: 12.5px; }
+  .hero--home .hero__almanac { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 0; min-width: 0; max-width: 100%; overflow: hidden; color: var(--text-2); font-size: 12.5px; }  
   .hero--home .hero__almanac .hero__subline-button { flex: 1 1 auto; display: block; min-width: 0; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
   .hero--home .hero__almanac .hero__sun { flex-shrink: 0; margin-left: 0; }
   .hero--home .hero__top { justify-content: flex-start; gap: 6px; }

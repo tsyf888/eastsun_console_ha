@@ -102,7 +102,7 @@ const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean; 
   // 但侧边栏身份来自 HA，绕过了控制台账户体系，所以直接隐藏，避免歧义。
   { id: 'security', label: '安全', icon: KeyRound, adminOnly: true, autoHidden: true },
   { id: 'audit', label: '记录', icon: History, adminOnly: true },
-  { id: 'login', label: '登录', icon: LogOut },
+  { id: 'login', label: '登录', icon: LogOut},
 ];
 
 function FormMessage({ message }: { message: Message }) {
@@ -510,6 +510,21 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
   }
 
   if (!isAdmin) {
+    // 侧边栏自动登录的普通成员：身份来自 HA，不需要在控制台登录/登出，也无需输入账号密码。
+    if (isAuto) {
+      return (
+        <div className="settings">
+          <section className="settings-card">
+            <div className="settings-card__heading"><span className="tile__chip"><ShieldCheck size={20} /></span><div><h3>身份信息</h3><p>当前身份来自 Home Assistant 的已登录账户，内外网访问都会自动登录，无需在控制台重复输入账号密码。</p></div></div>
+            <div className="settings-row">
+              <span>账户</span>
+              <strong>{user?.username ?? '—'}</strong>
+              <small>普通成员 · 自动登录</small>
+            </div>
+          </section>
+        </div>
+      );
+    }
     // 非管理员：直接渲染「登录」板块，不依赖 settings 数据。
     return (
       <div className="settings">
