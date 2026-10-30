@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine, Blinds, CircleStop, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Blinds, CircleStop, RotateCw, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
@@ -42,6 +42,8 @@ interface CoverCardProps {
   onClose: (id: string) => void;
   onStop: (id: string) => void;
   onPosition: (id: string, position: number) => void;
+  /** 调整倾斜角度（0–100，界面按 0–180° 展示）。 */
+  onTilt: (id: string, tilt: number) => void;
   /** 绑定的子窗帘：显示在设置弹窗里（大卡片）；宿主卡片因此获得设置按钮。 */
   childDevices?: CoverDevice[];
   /** 延时关闭（设置弹窗内）：seconds 秒后由服务端关闭窗帘。 */
@@ -51,7 +53,7 @@ interface CoverCardProps {
 }
 
 /** 窗帘 / 卷帘卡片：开合开关、位置滑杆（0 全关 - 100 全开）与停止。 */
-export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosition, childDevices, onTimerSet, onTimerClear }: CoverCardProps) {
+export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosition, onTilt, childDevices, onTimerSet, onTimerClear }: CoverCardProps) {
   const { size, editing, hkTiles: hk } = layout;
   // HomeKit 模式：1×1 横排窄卡，2×1 用原版紧凑方形内容，点击按原结构。
   const hkSmall = Boolean(hk) && size === '1x1';
@@ -74,6 +76,11 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
             ? '已关闭'
             : '状态未知';
   const rangeStyle = { '--range-progress': `${position}%` } as CSSProperties;
+  // 宽卡空间固定：同时支持开合与倾角时用「开合 / 角度」分段切换，复用同一条滑杆（角度按 0–180° 展示）。
+  const [tiltMode, setTiltMode] = useState(false);
+  const rangeMode = cover.supportsTilt && (!cover.supportsPosition || tiltMode) ? 'tilt' : 'position';
+  const tiltDegrees = Math.round((cover.tilt ?? 0) * 1.8);
+  const tiltStyle = { '--range-progress': `${(tiltDegrees / 180) * 100}%` } as CSSProperties;
   // 打开按钮只在完全打开（100%）时禁用；没有位置反馈的设备退回按状态判断。
   const openDisabled = disabled || (cover.position !== undefined ? position >= 100 : cover.state === 'open');
   // 关闭按钮只在完全关闭（0%）时禁用。
@@ -179,10 +186,23 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
             {hasChildren && !editing && !hkSmall && <button type="button" className="light-card__settings" onClick={() => setDetailOpen(true)} disabled={!cover.available} aria-label={`设置${label}与它的子窗帘`} aria-haspopup="dialog" aria-controls={detailOpen ? detailId : undefined}><SlidersHorizontal size={18} /></button>}
           </div>
           <div className="light-card__controls">
-            {cover.supportsPosition && <div className="light-card__range cover-card__range">
-              <span className="light-card__control-icon cover-card__control-icon" aria-hidden="true"><Blinds size={16} /></span>
-              <input type="range" min="0" max="100" value={position} style={rangeStyle} onChange={(event) => onPosition(cover.id, Number(event.target.value))} disabled={disabled} aria-label={`调整${label}开合位置`} />
-              <output>{position}%</output>
+            {(cover.supportsPosition || cover.supportsTilt) && <div className={`light-card__range cover-card__range${cover.supportsPosition && cover.supportsTilt ? ' cover-card__range--mode' : ''}`}>
+              {cover.supportsPosition && cover.supportsTilt ? (
+                <div className="cover-card__mode" role="group" aria-label={`${label}控制对象`}>
+                  <button type="button" className={rangeMode === 'position' ? 'is-active' : undefined} aria-pressed={rangeMode === 'position'} onClick={() => setTiltMode(false)} disabled={disabled}>开合</button>
+                  <button type="button" className={rangeMode === 'tilt' ? 'is-active' : undefined} aria-pressed={rangeMode === 'tilt'} onClick={() => setTiltMode(true)} disabled={disabled}>角度</button>
+                </div>
+              ) : (
+                <span className="light-card__control-icon cover-card__control-icon" aria-hidden="true">
+                  {cover.supportsTilt ? <RotateCw size={16} /> : <Blinds size={16} />}
+                </span>
+              )}
+              {rangeMode === 'tilt' ? (
+                <input type="range" min="0" max="180" value={tiltDegrees} style={tiltStyle} onChange={(event) => onTilt(cover.id, Math.round(Number(event.target.value) / 1.8))} disabled={disabled} aria-label={`调整${label}倾斜角度`} />
+              ) : (
+                <input type="range" min="0" max="100" value={position} style={rangeStyle} onChange={(event) => onPosition(cover.id, Number(event.target.value))} disabled={disabled} aria-label={`调整${label}开合位置`} />
+              )}
+              <output>{rangeMode === 'tilt' ? `${tiltDegrees}°` : `${position}%`}</output>
             </div>}
             {wideButtons}
           </div>
@@ -212,7 +232,7 @@ export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosi
         <span className="light-detail-dialog__children-title">子窗帘</span>
         <div className="light-detail-dialog__children-grid">
           {childCovers.map((child) => (
-            <CoverCard key={child.id} layout={{ id: child.id, label: `${room.name}${child.name}`, size: '2x1', hkTiles: hk }} cover={child} room={room} onOpen={onOpen} onClose={onClose} onStop={onStop} onPosition={onPosition} onTimerSet={onTimerSet} onTimerClear={onTimerClear} />
+            <CoverCard key={child.id} layout={{ id: child.id, label: `${room.name}${child.name}`, size: '2x1', hkTiles: hk }} cover={child} room={room} onOpen={onOpen} onClose={onClose} onStop={onStop} onPosition={onPosition} onTilt={onTilt} onTimerSet={onTimerSet} onTimerClear={onTimerClear} />
           ))}
         </div>
       </div>}

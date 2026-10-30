@@ -46,7 +46,7 @@ export function DeviceCard({ device, room, tile, actions, onOpenClimate, seasonL
   }
 
   if (device.kind === 'cover') {
-    return <CoverCard layout={layout} cover={device} room={room} onOpen={actions.coverOpen} onClose={actions.coverClose} onStop={actions.coverStop} onPosition={actions.coverPosition} childDevices={childDevices?.filter((item): item is CoverDevice => item.kind === 'cover')} onTimerSet={actions.setTimer} onTimerClear={actions.clearTimer} />;
+    return <CoverCard layout={layout} cover={device} room={room} onOpen={actions.coverOpen} onClose={actions.coverClose} onStop={actions.coverStop} onPosition={actions.coverPosition} onTilt={actions.coverTilt} childDevices={childDevices?.filter((item): item is CoverDevice => item.kind === 'cover')} onTimerSet={actions.setTimer} onTimerClear={actions.clearTimer} />;
   }
 
   if (device.kind === 'vacuum') {

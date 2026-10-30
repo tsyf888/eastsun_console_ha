@@ -165,6 +165,7 @@ ALLOWED_SERVICES: dict[str, dict[str, dict[str, Callable[[Any], bool]]]] = {
         "close_cover": {},
         "stop_cover": {},
         "set_cover_position": {"position": _number(0, 100)},
+        "set_cover_tilt_position": {"tilt_position": _number(0, 100)},
     },
     # 扫地机器人：开始 / 暂停 / 停止清扫、回充、定点清扫、寻找、风速档位。
     "vacuum": {

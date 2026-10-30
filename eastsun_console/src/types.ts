@@ -106,6 +106,9 @@ export interface CoverDevice extends BaseDevice {
   position?: number;
   supportsPosition: boolean;
   supportsStop: boolean;
+  /** 当前倾斜角度，HA current_tilt_position 的原值（0–100）；不支持倾角时为 undefined。 */
+  tilt?: number;
+  supportsTilt: boolean;
   /** HA 的 cover device_class：curtain / blind / shutter 等。 */
   coverClass?: string;
 }
@@ -173,6 +176,8 @@ export interface DeviceActions {
   coverClose: (id: string) => void;
   coverStop: (id: string) => void;
   coverPosition: (id: string, position: number) => void;
+  /** 调整倾斜角度（0–100，对应界面 0–180°）。 */
+  coverTilt: (id: string, tilt: number) => void;
   /** 扫地机器人：开始清扫 / 暂停 / 回充 / 寻找 / 设置清扫档位。 */
   vacuumStart: (id: string) => void;
   vacuumPause: (id: string) => void;

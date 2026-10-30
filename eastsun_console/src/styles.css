@@ -1169,6 +1169,12 @@ strong { font-weight: 600; }
 .cover-card__control-icon { color: #93c7b3; }
 .cover-card__range input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(90deg, #5d9a85, #b8e0d1 var(--range-progress), var(--overlay-2) var(--range-progress)); }
 .cover-card__range input[type="range"]::-moz-range-track { background: linear-gradient(90deg, #5d9a85, #b8e0d1 var(--range-progress), var(--overlay-2) var(--range-progress)); }
+/* 同时支持开合与倾角：左侧换成「开合 / 角度」分段切换，复用同一条滑杆，高度不变 */
+.cover-card__range--mode { grid-template-columns: auto minmax(0, 1fr) 36px; gap: 8px; }
+.cover-card__mode { display: flex; gap: 1px; height: 24px; padding: 2px; border: 1px solid var(--hairline); border-radius: 999px; background: var(--overlay-2); }
+.cover-card__mode button { padding: 0 7px; border: 0; border-radius: 999px; background: none; color: var(--text-3); font-size: 11px; font-weight: 500; line-height: 1; white-space: nowrap; transition: background-color .18s, color .18s; }
+.cover-card__mode button.is-active { background: var(--surface-2); color: var(--text); box-shadow: var(--highlight); }
+.cover-card__mode button:disabled { opacity: .55; }
 .cover-card__buttons { display: flex; gap: 8px; }
 .cover-card__button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; height: 38px; padding: 0; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-2); color: var(--text-2); font-size: 12.5px; transition: border-color .18s, background-color .18s, color .18s; }
 .cover-card__button:hover:not(:disabled) { border-color: var(--glow); color: var(--text); }
@@ -1371,6 +1377,8 @@ strong { font-weight: 600; }
 @media (max-width: 480px) {
   .empty-room { align-items: flex-start; padding: 18px; gap: 12px; }
   .empty-room__icon { width: 40px; height: 40px; border-radius: 13px; }
+  /* 只有一行说明文字时（“目前没有打开的设备”等），与图标垂直居中对齐，避免贴在图标顶部 */
+  .empty-room > p { align-self: center; }
 }
 
 /* ---------- Room order dialog ---------- */

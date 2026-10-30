@@ -10,7 +10,7 @@ import type { Device, DeviceActions, HomeState } from './types';
 
 /** 滑杆和连续点击合并后再发送，避免拖动时每一帧都调用服务。 */
 const debounceMs = 300;
-const debouncedCommands = new Set<DeviceCommand['type']>(['light', 'mediaVolume', 'adjust', 'fanSpeed', 'coverPosition']);
+const debouncedCommands = new Set<DeviceCommand['type']>(['light', 'mediaVolume', 'adjust', 'fanSpeed', 'coverPosition', 'coverTilt']);
 /** 操作后等 HA 确认的最长时间：确认前 HA 推来的旧状态不覆盖页面，超时后以 HA 的实际状态为准。 */
 const confirmTimeoutMs = 10_000;
 
@@ -220,6 +220,7 @@ export function useHome(live: LiveSource | null) {
     coverClose: (id) => dispatch(id, { type: 'coverClose' }),
     coverStop: (id) => dispatch(id, { type: 'coverStop' }),
     coverPosition: (id, position) => dispatch(id, { type: 'coverPosition', position }),
+    coverTilt: (id, tilt) => dispatch(id, { type: 'coverTilt', tilt }),
     vacuumStart: (id) => dispatch(id, { type: 'vacuumStart' }),
     vacuumPause: (id) => dispatch(id, { type: 'vacuumPause' }),
     vacuumReturn: (id) => dispatch(id, { type: 'vacuumReturn' }),
@@ -287,6 +288,7 @@ export const readOnlyActions: DeviceActions = {
   coverClose: ignore,
   coverStop: ignore,
   coverPosition: ignore,
+  coverTilt: ignore,
   vacuumStart: ignore,
   vacuumPause: ignore,
   vacuumReturn: ignore,

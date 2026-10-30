@@ -20,6 +20,7 @@ export type DeviceCommand =
   | { type: 'coverClose' }
   | { type: 'coverStop' }
   | { type: 'coverPosition'; position: number }
+  | { type: 'coverTilt'; tilt: number }
   | { type: 'vacuumStart' }
   | { type: 'vacuumPause' }
   | { type: 'vacuumReturn' }
@@ -109,6 +110,10 @@ export function applyCommand(device: Device, command: DeviceCommand): Device {
       if (device.kind !== 'cover' || !device.supportsPosition) return device;
       const position = Math.min(100, Math.max(0, command.position));
       return { ...device, position, state: position <= 0 ? 'closed' : 'open' };
+    }
+    case 'coverTilt': {
+      if (device.kind !== 'cover' || !device.supportsTilt) return device;
+      return { ...device, tilt: Math.min(100, Math.max(0, command.tilt)) };
     }
     case 'vacuumStart':
       return device.kind === 'vacuum' && device.status !== 'cleaning' ? { ...device, status: 'cleaning' } : device;

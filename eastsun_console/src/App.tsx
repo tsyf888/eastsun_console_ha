@@ -280,7 +280,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
       changeClimateMode: fn, changeFanMode: fn, setSwingMode: fn,
       mediaPower: fn, mediaPlayPause: fn, mediaVolume: fn,
       changeFanSpeed: fn, changeFanPreset: fn, setFanOscillate: fn,
-      coverOpen: fn, coverClose: fn, coverStop: fn, coverPosition: fn,
+      coverOpen: fn, coverClose: fn, coverStop: fn, coverPosition: fn, coverTilt: fn,
       vacuumStart: fn, vacuumPause: fn, vacuumReturn: fn,
       vacuumLocate: fn, vacuumFanSpeed: fn, setTimer: fn, clearTimer: fn,
     };

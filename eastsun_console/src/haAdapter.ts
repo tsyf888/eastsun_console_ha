@@ -111,13 +111,14 @@ function toFan(base: FanDevice, previous: FanDevice | undefined, state: EntitySt
 }
 
 // CoverEntityFeature 位：OPEN=1, CLOSE=2, SET_POSITION=4, STOP=8。
-const coverFeature = { open: 1, close: 2, setPosition: 4, stop: 8 };
+const coverFeature = { open: 1, close: 2, setPosition: 4, stop: 8, setTiltPosition: 128 };
 const coverStates = new Set(['open', 'closed', 'opening', 'closing']);
 
 function toCover(base: CoverDevice, previous: CoverDevice | undefined, state: EntityState): CoverDevice {
   const a = state.attributes;
   const features = num(a.supported_features) ?? 0;
   const position = num(a.current_position);
+  const tilt = num(a.current_tilt_position);
   return {
     ...base,
     available: true,
@@ -125,6 +126,9 @@ function toCover(base: CoverDevice, previous: CoverDevice | undefined, state: En
     position: position !== undefined ? Math.round(position) : previous?.position,
     supportsPosition: Boolean(features & coverFeature.setPosition),
     supportsStop: Boolean(features & coverFeature.stop),
+    // 有的集成只上报 current_tilt_position 而不标记 supported_features，也按支持倾角处理。
+    tilt: tilt !== undefined ? Math.round(tilt) : previous?.tilt,
+    supportsTilt: Boolean(features & coverFeature.setTiltPosition) || tilt !== undefined,
     coverClass: str(a.device_class),
   };
 }
@@ -235,7 +239,7 @@ function baseDevice(entity: CatalogueEntity, roomId: string, state: EntityState 
       // fan 域混入了新风机 / 浴霸换气，卡片按通用风扇处理，能力由状态属性补齐。
       return { ...common, kind: 'fan', on: false };
     case 'cover':
-      return { ...common, kind: 'cover', state: 'unknown', supportsPosition: false, supportsStop: false };
+      return { ...common, kind: 'cover', state: 'unknown', supportsPosition: false, supportsStop: false, supportsTilt: false };
     case 'vacuum':
       return { ...common, kind: 'vacuum', status: 'unknown', mapEntity: entity.mapEntityId };
     case 'switch':
@@ -517,6 +521,8 @@ export function serviceCall(after: Device, command: DeviceCommand): ServiceCall 
       return { domain: 'cover', service: 'stop_cover', data: {} };
     case 'coverPosition':
       return { domain: 'cover', service: 'set_cover_position', data: { position: command.position } };
+    case 'coverTilt':
+      return { domain: 'cover', service: 'set_cover_tilt_position', data: { tilt_position: Math.min(100, Math.max(0, Math.round(command.tilt))) } };
     case 'vacuumStart':
       return { domain: 'vacuum', service: 'start', data: {} };
     case 'vacuumPause':
