@@ -32,6 +32,8 @@ export interface AdminSettings {
   allOffExcludes: string[];
   /** 人员在家配置列表。 */
   people: PersonConfig[];
+  /** 日志保留天数（30/90/180/365/730/1095，0 = 永久）。 */
+  auditRetentionDays: number;
   season: Season | null;
   seasonSync: { state: 'idle' | 'demo' | 'waiting' | 'syncing' | 'off' | 'ok' | 'pending' | 'error'; message: string };
 }

@@ -1607,7 +1607,7 @@ strong { font-weight: 600; }
   .auth-card__heading h1 { font-size: 19px; }
 }
 
-.settings-segmented { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--bg); }
+.settings-segmented { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 2px; padding: 3px; border: 1px solid var(--hairline-strong); border-radius: 999px; background: var(--bg); }
 .settings-segmented button { min-height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-size: 12.5px; }
 .settings-segmented button[aria-checked="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .settings-row--accent { flex-wrap: wrap; margin-top: 10px; }

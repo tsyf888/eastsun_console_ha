@@ -4,7 +4,7 @@
 - HA 令牌用 Fernet（AES-128-CBC + HMAC）加密。密钥优先取环境变量 HOME_CONSOLE_SECRET；
   未设置时在数据目录生成 secret.key（与 Node-RED 的 _credentialSecret 同理：能读到整个数据目录的人仍可解密）。
 - layout.json：全家共用的布局（卡片尺寸、房间内顺序、常用设备、房间顺序），所有屏幕看到同一份。
-- audit.log：每行一条 JSON，记录登录、设置变更与设备控制；从不写入令牌或密码。
+- audit-YYYY-MM.log：每行一条 JSON，记录登录、设置变更与设备控制；按月归档，单月超过 50MB 会滚动成 .partN.log，保留时间可在设置里配置（1 个月到永久）。从不写入令牌或密码。
 """
 
 from __future__ import annotations
@@ -12,16 +12,19 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from cryptography.fernet import Fernet, InvalidToken
+
+log = logging.getLogger("home_console_server")
 
 DEFAULT_PIN = "1234"
 THEMES = ("dark", "light", "auto")
@@ -34,7 +37,11 @@ DEFAULT_HOME_SUBTITLE = ""
 DEFAULT_BRAND_TITLE = "家庭控制"
 BRAND_TITLE_MAX = 10  # 家庭名称最长 10 个中文字
 TILE_SCALE_MIN, TILE_SCALE_MAX, TILE_SCALE_DEFAULT = 80, 120, 100  # 设备格子缩放百分比
-AUDIT_MAX_BYTES = 1_000_000
+AUDIT_RETENTION_OPTIONS = (30, 90, 180, 365, 730, 1095, 0)  # 日志保留天数；0 表示永久保留
+AUDIT_RETENTION_DEFAULT = 365
+AUDIT_MAX_BYTES = 50 * 1024 * 1024  # 单个月份文件上限，超过后滚动成 audit-YYYY-MM.partN.log
+AUDIT_FILE_RE = re.compile(r"audit-(\d{4}-\d{2})(?:\.part(\d+))?\.log")  # 按月归档，可分片
+AUDIT_DAILY_RE = re.compile(r"audit-(\d{4}-\d{2})-(\d{2})\.log")  # 旧版按天文件，仅用于启动迁移
 
 # ---------- 账户系统：accounts.json 独立文件，便于 Docker/compose 映射备份 ----------
 
@@ -494,6 +501,8 @@ class Settings:
     weather_place: dict[str, Any] | None = None
     # 人员在家配置：每人 id/name/entityId/image(自定义图片名,null=默认)/homeStates(判定在家的状态值列表)
     people: list[dict[str, Any]] = field(default_factory=list)
+    # 日志保留天数（30/90/180/365/730/1095，0 = 永久）
+    audit_retention_days: int = AUDIT_RETENTION_DEFAULT
 
     def filter(self) -> dict[str, Any]:
         return {"mode": self.filter_mode, "blacklist": self.blacklist, "whitelist": self.whitelist}
@@ -521,6 +530,7 @@ class Settings:
             "allOffExcludes": self.all_off_excludes,
             "weatherPlace": self.weather_place,
             "people": self.people,
+            "auditRetentionDays": self.audit_retention_days,
         }
 
 
@@ -567,8 +577,11 @@ class Store:
         os.chmod(data_dir, 0o700)
         self.settings_path = data_dir / "settings.json"
         self.audit_path = data_dir / "audit.log"
+        self._audit_month = ""
         self.fernet = Fernet(self._load_key())
         self.settings = self._load_settings()
+        self._migrate_audit_legacy()
+        self.prune_audit()
         self.layout_path = data_dir / "layout.json"
         self.layout = self._load_layout()
         self.custom_path = data_dir / "custom.json"
@@ -619,6 +632,7 @@ class Store:
             all_off_excludes=id_list(raw.get("allOffExcludes")) or [],
             weather_place=weather_place(raw.get("weatherPlace")),
             people=raw.get("people") if isinstance(raw.get("people"), list) else [],
+            audit_retention_days=raw.get("auditRetentionDays") if raw.get("auditRetentionDays") in AUDIT_RETENTION_OPTIONS else AUDIT_RETENTION_DEFAULT,
         )
 
     def _save(self, settings: Settings) -> None:
@@ -647,6 +661,7 @@ class Store:
             "allOffExcludes": settings.all_off_excludes,
             "weatherPlace": settings.weather_place,
             "people": settings.people,
+            "auditRetentionDays": settings.audit_retention_days,
         }
         _write_private(self.settings_path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
@@ -839,18 +854,117 @@ class Store:
     def set_token(self, token: str) -> None:
         self.settings.token_encrypted = self._encrypt(token)
 
+    def _audit_file(self, month: str, part: int = 0) -> Path:
+        name = f"audit-{month}.log" if part == 0 else f"audit-{month}.part{part}.log"
+        return self.data_dir / name
+
+    def _audit_files(self, start_ts: float | None = None, end_ts: float | None = None) -> list[Path]:
+        """按月从新到旧返回日志文件；同月先主文件、再 part 从大到小。给了时间区间时只保留相交月份。"""
+        entries: list[tuple[Path, str, int]] = []
+        for path in self.data_dir.glob("audit-*.log"):
+            match = AUDIT_FILE_RE.match(path.name)
+            if match:
+                entries.append((path, match.group(1), int(match.group(2) or 0)))
+        # 同月内 part 编号越大越旧，主文件（part=0）最新，所以用大数把主文件排在最前。
+        entries.sort(key=lambda entry: (entry[1], 10**9 if entry[2] == 0 else entry[2]), reverse=True)
+        files = [entry[0] for entry in entries]
+        if start_ts is None and end_ts is None:
+            return files
+        selected: list[Path] = []
+        for path, month_key, _ in entries:
+            year, month = (int(part) for part in month_key.split("-"))
+            month_start = datetime(year, month, 1).timestamp()
+            month_end = datetime(year + 1, 1, 1).timestamp() if month == 12 else datetime(year, month + 1, 1).timestamp()
+            if end_ts is not None and month_start >= end_ts:
+                continue
+            if start_ts is not None and month_end <= start_ts:
+                continue
+            selected.append(path)
+        return selected
+
+    def _oldest_audit_file(self, month: str) -> Path:
+        """取某月最旧的分片：part1 最早，没有分片时返回主文件。迁移旧数据时插到它前面。"""
+        return self._audit_file(month, 1) if self._audit_file(month, 1).is_file() else self._audit_file(month)
+
+    def _rotate_audit(self, path: Path, month: str) -> None:
+        """当月主文件超过上限时改名成 partN，后续记录继续写入新的主文件。"""
+        part = 1
+        while self._audit_file(month, part).exists():
+            part += 1
+        path.rename(self._audit_file(month, part))
+
+    def _migrate_audit_legacy(self) -> None:
+        """把旧版按天文件与单文件 audit.log / audit.log.1 并入按月文件（旧数据放在前面）。"""
+        groups: dict[str, list[tuple[tuple[int, str], Path]]] = {}
+        for path in self.data_dir.glob("audit-*.log"):
+            match = AUDIT_DAILY_RE.match(path.name)
+            if match:
+                groups.setdefault(match.group(1), []).append(((0, match.group(2)), path))
+        # audit.log.1 比 audit.log 更早，排在同月按天文件之后、audit.log 之前。
+        for order, legacy in (((1, "0"), self.audit_path.with_suffix(".log.1")), ((1, "1"), self.audit_path)):
+            if legacy.is_file():
+                month = datetime.fromtimestamp(legacy.stat().st_mtime).strftime("%Y-%m")
+                groups.setdefault(month, []).append((order, legacy))
+        for month, items in groups.items():
+            data = b""
+            for _, path in sorted(items, key=lambda item: item[0]):
+                chunk = path.read_bytes()
+                if chunk:
+                    data += chunk if chunk.endswith(b"\n") else chunk + b"\n"
+            if data:
+                # 旧数据比新方案产生的分片更早，因此插到该月最旧分片的前面。
+                target = self._oldest_audit_file(month)
+                existing = target.read_bytes() if target.is_file() else b""
+                target.write_bytes(data + existing)
+            for _, path in items:
+                path.unlink(missing_ok=True)
+
+    def prune_audit(self) -> None:
+        """按设置里的保留天数删除过期月份文件；0 表示永久保留。"""
+        retention = self.settings.audit_retention_days
+        if retention <= 0:
+            return
+        cutoff = date.today() - timedelta(days=retention - 1)
+        for path in self._audit_files():
+            match = AUDIT_FILE_RE.match(path.name)
+            if not match:
+                continue
+            year, month = (int(part) for part in match.group(1).split("-"))
+            month_end = date(year + 1, 1, 1) - timedelta(days=1) if month == 12 else date(year, month + 1, 1) - timedelta(days=1)
+            if month_end < cutoff:
+                path.unlink(missing_ok=True)
+
+    @staticmethod
+    def _audit_line_count(path: Path) -> int:
+        """只数行数、不解析 JSON，用于快速估算总数。"""
+        try:
+            with open(path, encoding="utf-8") as handle:
+                return sum(1 for _ in handle)
+        except OSError:
+            return 0
+
     def audit(self, event: str, ip: str, username: str = "", **detail: Any) -> None:
         """审计日志：username 记录是哪个账户操作；service_call / scene_call 即“操控设备/场景记录”。
 
         time 是写入时的服务端本地时间字符串（兼容旧记录），ts 是同一时刻的 Unix 时间戳，
         前端按浏览器时区显示与按日期筛选都以 ts 为准（容器时区通常是 UTC）。
+        记录按月写入 audit-YYYY-MM.log，超过大小上限时滚动成 .partN.log；
+        跨月时顺带按保留天数清理过期文件。写入失败只记 warning，不拖垮业务请求。
         """
         entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "ts": round(time.time(), 3), "event": event, "ip": ip, "user": username, **detail}
-        if self.audit_path.exists() and self.audit_path.stat().st_size > AUDIT_MAX_BYTES:
-            os.replace(self.audit_path, self.audit_path.with_suffix(".log.1"))
-        fd = os.open(self.audit_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
-        with os.fdopen(fd, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        month = datetime.now().strftime("%Y-%m")
+        try:
+            if month != self._audit_month:
+                self._audit_month = month
+                self.prune_audit()
+            path = self._audit_file(month)
+            if path.is_file() and path.stat().st_size >= AUDIT_MAX_BYTES:
+                self._rotate_audit(path, month)
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError as error:
+            log.warning("写入日志失败（%s）：%s", event, error)
 
     @staticmethod
     def _audit_ts(item: dict[str, Any]) -> float:
@@ -875,27 +989,44 @@ class Store:
         """按时间倒序分页查询审计日志，返回 (当前页条目, 匹配总数)。
 
         event 支持逗号分隔的多个类型（如 service_call,scene_call 只看操控记录）；
-        start_ts / end_ts 为 Unix 时间戳区间（左闭右开），用于按日期筛选。
-        审计文件超过 1MB 会滚动，整体读取开销很小。
+        start_ts / end_ts 为 Unix 时间戳区间（左闭右开），用于按日期筛选，只读相交的月份文件。
+        未筛类型且未限日期时，读到当前页最后一条就停止解析，总数用剩余行数估算，
+        避免每次都把全部记录 JSON 解析一遍。
         """
-        if not self.audit_path.exists():
+        files = self._audit_files(start_ts, end_ts)
+        if not files:
             return [], 0
         wanted = {part.strip() for part in event.split(",") if part.strip()} if event else None
+        page_start = (page - 1) * page_size
+        needed = page_start + page_size
+        fast = wanted is None and start_ts is None and end_ts is None
         matched: list[dict[str, Any]] = []
-        for line in reversed(self.audit_path.read_text(encoding="utf-8").splitlines()):
+        total: int | None = None
+        for index, path in enumerate(files):
             try:
-                item = json.loads(line)
-            except json.JSONDecodeError:
+                lines = path.read_text(encoding="utf-8").splitlines()
+            except OSError:
                 continue
-            if wanted is not None and item.get("event") not in wanted:
-                continue
-            if start_ts is not None or end_ts is not None:
-                stamp = self._audit_ts(item)
-                if start_ts is not None and stamp < start_ts:
+            for pos in range(len(lines) - 1, -1, -1):
+                try:
+                    item = json.loads(lines[pos])
+                except json.JSONDecodeError:
                     continue
-                if end_ts is not None and stamp >= end_ts:
+                if wanted is not None and item.get("event") not in wanted:
                     continue
-            matched.append(item)
-        total = len(matched)
-        start = (page - 1) * page_size
-        return matched[start:start + page_size], total
+                if start_ts is not None or end_ts is not None:
+                    stamp = self._audit_ts(item)
+                    if start_ts is not None and stamp < start_ts:
+                        continue
+                    if end_ts is not None and stamp >= end_ts:
+                        continue
+                matched.append(item)
+                if fast and len(matched) >= needed:
+                    # 当前页已凑够：本文件还剩 pos 行，加上更旧文件的行数即可得到总数。
+                    total = len(matched) + pos + sum(self._audit_line_count(rest) for rest in files[index + 1:])
+                    break
+            if total is not None:
+                break
+        if total is None:
+            total = len(matched)
+        return matched[page_start:page_start + page_size], total

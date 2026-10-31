@@ -38,7 +38,7 @@ from .ha import HaUpstream
 from .motion import PTZ_DIRECTIONS, MotionScreenshotter
 from .onvif import OnvifError, OnvifManager
 from .season import HELPER_ENTITY as SEASON_HELPER, SEASONS, SeasonRules
-from .store import ACCENTS, STYLES, BRAND_TITLE_MAX, DEFAULT_BRAND_TITLE, DEFAULT_HOME_TITLE, HOME_TITLE_MAX, THEMES, TILE_SCALE_MAX, TILE_SCALE_MIN, USERNAME_MAX, USERNAME_RE, PASSWORD_MIN, PASSWORD_MAX, ACCOUNTS_MAX, Account, Store, clean_custom, hash_pin, id_list, is_tile_scale, verify_pin, OCCUPIED_STATES, weather_place
+from .store import ACCENTS, STYLES, AUDIT_RETENTION_OPTIONS, BRAND_TITLE_MAX, DEFAULT_BRAND_TITLE, DEFAULT_HOME_TITLE, HOME_TITLE_MAX, THEMES, TILE_SCALE_MAX, TILE_SCALE_MIN, USERNAME_MAX, USERNAME_RE, PASSWORD_MIN, PASSWORD_MAX, ACCOUNTS_MAX, Account, Store, clean_custom, hash_pin, id_list, is_tile_scale, verify_pin, OCCUPIED_STATES, weather_place
 from .almanac import Almanac
 from .weather import Weather, WeatherError, valid_location
 
@@ -1272,11 +1272,21 @@ class ConsoleServer:
             if cleaned != settings.people:
                 settings.people = cleaned
                 changed.append("people")
+        if "auditRetentionDays" in body:
+            value = body["auditRetentionDays"]
+            if not isinstance(value, int) or isinstance(value, bool) or value not in AUDIT_RETENTION_OPTIONS:
+                return web.json_response({"error": "不支持的日志保留时间"}, status=400)
+            if value != settings.audit_retention_days:
+                settings.audit_retention_days = value
+                changed.append("auditRetentionDays")
 
         if changed:
             self.store.save()
             self.store.audit("settings_changed", client_ip(request), username=session["username"], fields=changed,
                              controlEnabled=settings.control_enabled, dataSource=settings.data_source, haUrl=settings.ha_url)
+        if "auditRetentionDays" in changed:
+            # 改成更短的保留时间后立刻清理过期文件，不必等到下个月。
+            self.store.prune_audit()
         if "motionCapture" in changed:
             # 总开关切换：sync([]) 会停掉所有监测/帧差进程，但保留过期截图的定时清理。
             self.motion.sync(self.store.custom.get("cameras", []) if settings.motion_capture else [])

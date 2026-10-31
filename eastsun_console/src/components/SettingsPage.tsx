@@ -261,7 +261,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       const url = URL.createObjectURL(new Blob([`\ufeff${lines.join('\r\n')}\r\n`], { type: 'text/csv;charset=utf-8' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `操作记录-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `日志记录-${new Date().toISOString().slice(0, 10)}.csv`;
       link.click();
       URL.revokeObjectURL(url);
       setAuditMessage({ tone: 'good', text: `已导出 ${rows.length} 条记录` });
@@ -936,7 +936,15 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
 
         {tab === 'audit' && (
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>操作记录</h3><p>按日期查询、分页查看登录、设置、布局与设备、场景控制记录；按账户区分，标明是谁操作了什么，可导出 CSV；不含令牌和密码。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>日志记录</h3><p>按日期查询、分页查看登录、设置、布局与设备、场景控制记录；未来会包含告警记录。按账户区分，标明是谁操作了什么，可导出 CSV；不含令牌和密码。</p></div></div>
+            <div className="settings-row">
+              <span id={`${formId}-audit-retention`}>保留时间</span>
+              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-retention`}>
+                {([[30, '1 个月'], [90, '3 个月'], [180, '6 个月'], [365, '1 年'], [730, '2 年'], [1095, '3 年'], [0, '永久']] as const).map(([days, label]) => (
+                  <button key={days} type="button" role="radio" aria-checked={(settings.auditRetentionDays ?? 365) === days} onClick={() => { if ((settings.auditRetentionDays ?? 365) !== days) void save({ auditRetentionDays: days }, setAuditMessage, `日志保留时间已设为${label}`); }}>{label}</button>
+                ))}
+              </div>
+            </div>
             <div className="settings-row">
               <span id={`${formId}-audit-range`}>日期</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-range`}>
