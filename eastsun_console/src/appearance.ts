@@ -1,6 +1,7 @@
 import {
-  AirVent, Baby, Bath, BedDouble, BedSingle, BookOpen, PlugZap, Power,
-  CookingPot, Flame, House, Lamp, ShowerHead, Sofa, UtensilsCrossed, Wind,
+  AirVent, Baby, Bath, BedDouble, BedSingle, BookOpen, Briefcase, Building, Cctv, ConciergeBell,
+  CookingPot, Factory, Flame, Hotel, House, HousePlug, Lamp, Lightbulb, PlugZap, Power, Presentation,
+  ShowerHead, Sofa, UtensilsCrossed, Wind,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { ClimateDevice, Device, LightDevice } from './types';
@@ -32,6 +33,21 @@ const roomKeywords: [string, LucideIcon][] = [
   ['浴', ShowerHead],
   ['厨', CookingPot],
   ['书房', BookOpen],
+  // 行业 / 场景区域：智能家居、酒店客控、智能照明、楼宇、企业办公
+  ['智能家居', HousePlug],
+  ['照明', Lightbulb],
+  ['灯光', Lightbulb],
+  ['酒店', Hotel],
+  ['客房', Hotel],
+  ['前台', ConciergeBell],
+  ['大堂', ConciergeBell],
+  ['会议', Presentation],
+  ['办公', Briefcase],
+  ['楼', Building],
+  ['大厦', Building],
+  ['园区', Factory],
+  ['厂房', Factory],
+  ['监控', Cctv],
 ];
 
 export function roomIcon(room: { id: string; name: string; icon?: string }): LucideIcon {

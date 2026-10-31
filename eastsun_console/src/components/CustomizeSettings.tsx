@@ -567,7 +567,7 @@ export function HomeDisplaySettings() {
   }
 
   return (
-    <CollapsibleCard icon={ZoomIn} title="主页显示">
+    <CollapsibleCard icon={ZoomIn} title="主页显示" defaultOpen>
       <p className="settings-message">调整首页时间与天气卡片的大小，仅对当前这块屏幕生效（保存在本机）。</p>
       <div className="settings-row">
         <span><strong>主页版面</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>「同排」把摄像头与常用设备放在同一行（约 4:6），常用卡片单排自动缩放不换行；「经典」为原来的上下排布。</small></span>

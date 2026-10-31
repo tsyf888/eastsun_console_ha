@@ -3,8 +3,9 @@
  * 与后端 ICON_KEY_RE 一致；遇到未知键时统一回退默认图标，旧数据不会显示成空白。
  */
 import {
-  AirVent, Aperture, Archive, Armchair, Baby, Bath, BedDouble, BedSingle, Bike, Blinds, BookOpen, Boxes, Briefcase, Building2,
-  Car, CircleDot, Clapperboard, Coffee, CookingPot, DoorClosed, DoorOpen, Droplets, Dumbbell, Fan, Fence, Film, Flame, Flower2,
+  AirVent, Aperture, Archive, Armchair, Baby, Bath, BedDouble, BedSingle, Bike, Blinds, BookOpen, Boxes, Briefcase, Building, Building2,
+  Car, Cctv, CircleDot, Clapperboard, Coffee, ConciergeBell, CookingPot, Cpu, DoorClosed, DoorOpen, Droplets, Dumbbell, Factory, Fan, Fence, Film, Flame, Flower2,
+  Hotel, HousePlug, Landmark, Presentation,
   Gamepad2, Grid2x2, Guitar, Heart, House, Lamp, LampCeiling, LampDesk, LampFloor, LampWallUp, Library, Lightbulb, Lock, LockOpen,
   Monitor, Moon, MoonStar, Mountain, Music, Package, Palette, PartyPopper, PawPrint, Piano, Power, Refrigerator, Server, ShieldCheck,
   ShowerHead, Snowflake, Sofa, Sparkles, Spline, Sprout, Store, Sun, Sunrise, Sunset, Tent, Theater, Thermometer, TreePine, Trees,
@@ -68,6 +69,18 @@ export const ROOM_ICONS: IconChoice[] = [
   { key: 'store', label: '商铺', Icon: Store },
   { key: 'bike', label: '自行车房', Icon: Bike },
   { key: 'utensils', label: '早餐区', Icon: Utensils },
+  // ---- 行业 / 场景区域图标：智能家居、酒店客控、智能照明、楼宇、企业办公 ----
+  { key: 'house-plug', label: '智能家居', Icon: HousePlug },
+  { key: 'cpu', label: '智能中枢', Icon: Cpu },
+  { key: 'lightbulb', label: '智能照明', Icon: Lightbulb },
+  { key: 'hotel', label: '酒店客房', Icon: Hotel },
+  { key: 'concierge-bell', label: '前台/大堂', Icon: ConciergeBell },
+  { key: 'presentation', label: '会议室', Icon: Presentation },
+  { key: 'users', label: '开放办公', Icon: Users },
+  { key: 'building', label: '楼宇/大厦', Icon: Building },
+  { key: 'factory', label: '厂房/园区', Icon: Factory },
+  { key: 'landmark', label: '公共建筑', Icon: Landmark },
+  { key: 'cctv', label: '监控室', Icon: Cctv },
 ];
 
 /** 情景按钮图标；第一项为默认。 */
