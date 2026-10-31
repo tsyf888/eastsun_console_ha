@@ -1512,8 +1512,12 @@ strong { font-weight: 600; }
 .settings > * { min-width: 0; }
 .settings-tabs-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 /* 页签始终单行：空间不足时横向滚动（隐藏滚动条），不再换行把「登录」挤到第二行 */
-.settings-tabs { display: flex; flex-wrap: nowrap; gap: 4px; min-width: 0; padding: 4px; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--glass-border); border-radius: 999px; background: var(--glass); box-shadow: var(--highlight); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); scrollbar-width: none; }
+.settings-tabs { display: flex; flex-wrap: nowrap; gap: 4px; flex: 1; min-width: 0; padding: 4px; overflow-x: auto; overscroll-behavior-x: contain; border: 1px solid var(--glass-border); border-radius: 999px; background: var(--glass); box-shadow: var(--highlight); -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); scrollbar-width: none; }
 .settings-tabs::-webkit-scrollbar { display: none; }
+/* 桌面端：胶囊条铺满整行（与下方内容列同宽），页签在条内均匀分布 */
+@media (min-width: 721px) {
+  .settings-tabs { justify-content: space-between; }
+}
 /* 内边距微调（10→9px）以容纳「全局显示」4 字页签，靠 790px 内容宽度单行排满 */
 .settings-tabs button { display: inline-flex; flex: none; align-items: center; gap: 6px; min-height: 36px; padding: 0 9px; border: 0; border-radius: 999px; background: transparent; color: var(--text-2); font-size: 13px; white-space: nowrap; transition: background-color .18s, color .18s; }
 .settings-tabs button:hover { color: var(--text); }
