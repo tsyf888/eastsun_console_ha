@@ -547,7 +547,7 @@ export function SettingsPage({ status, sceneStyle, user, ingress, firstRun, onLo
           </section>
           <HomeDisplaySettings />
           <LocalAppearanceSettings
-            scope={status?.appearanceScope ?? 'global'}
+            scope={status?.appearanceScope ?? 'custom'}
             theme={status?.theme ?? 'auto'}
             accent={status?.accent ?? 'amber'}
             style={status?.style ?? 'glass26'}
@@ -654,7 +654,7 @@ export function SettingsPage({ status, sceneStyle, user, ingress, firstRun, onLo
         {tab === 'local' && <>
           <HomeDisplaySettings />
           <LocalAppearanceSettings
-            scope={status?.appearanceScope ?? 'global'}
+            scope={status?.appearanceScope ?? 'custom'}
             theme={status?.theme ?? 'auto'}
             accent={status?.accent ?? 'amber'}
             style={status?.style ?? 'glass26'}
@@ -833,7 +833,7 @@ export function SettingsPage({ status, sceneStyle, user, ingress, firstRun, onLo
               <span id={`${formId}-appearance-scope`}>主题（含强调色）、风格（含情景按钮风格）与格子大小</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-appearance-scope`}>
                 {([['global', '全局'], ['custom', '自定义']] as const).map(([value, label]) => (
-                  <button key={value} type="button" role="radio" aria-checked={(settings.appearanceScope ?? 'global') === value} onClick={() => { if ((settings.appearanceScope ?? 'global') !== value) void save({ appearanceScope: value }, setThemeMessage, value === 'global' ? '已改为全局：所有屏幕共用主题、风格与格子大小' : '已改为自定义：每块屏幕可在本机显示里单独设置'); }}>{label}</button>
+                  <button key={value} type="button" role="radio" aria-checked={(settings.appearanceScope ?? 'custom') === value} onClick={() => { if ((settings.appearanceScope ?? 'custom') !== value) void save({ appearanceScope: value }, setThemeMessage, value === 'global' ? '已改为全局：所有屏幕共用主题、风格与格子大小' : '已改为自定义：每块屏幕可在本机显示里单独设置'); }}>{label}</button>
                 ))}
               </div>
             </div>

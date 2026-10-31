@@ -174,7 +174,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
     window.addEventListener(LOCAL_APPEARANCE_EVENT, sync);
     return () => window.removeEventListener(LOCAL_APPEARANCE_EVENT, sync);
   }, []);
-  const appearanceScope = server.status?.appearanceScope ?? 'global';
+  const appearanceScope = server.status?.appearanceScope ?? 'custom';
   const customAppearance = appearanceScope === 'custom';
   // 主题：服务端设置的模式 + 本屏的日出日落（自动模式），每 15 秒随时钟重新计算，变化时才应用。
   const themeMode = customAppearance ? (localAppearance.theme ?? server.status?.theme) : server.status?.theme;
