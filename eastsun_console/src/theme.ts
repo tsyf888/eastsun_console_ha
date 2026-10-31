@@ -217,27 +217,31 @@ export function resetLocalAppearance(): void {
   window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
 }
 
-/** 本机外观是否已经定下来（有本机设置，或主动选择过跟随全局）。 */
-export function isLocalAppearancePinned(): boolean {
+/** 是否主动点过“恢复为跟随全局”（之后不再自动固化全局值）。 */
+export function followsGlobalAppearance(): boolean {
   try {
-    if (localStorage.getItem(LOCAL_FOLLOW_KEY) === '1') return true;
-    return Object.keys(readLocalAppearance()).length > 0;
+    return localStorage.getItem(LOCAL_FOLLOW_KEY) === '1';
   } catch {
-    // 存储不可用时按已固定处理，避免每次渲染都重复写入。
-    return true;
+    return false;
   }
 }
 
-/** 首次进入自定义显示范围时，把当前全局外观存一份到本机，之后全局改动不再影响这块屏幕。 */
-export function snapshotLocalAppearance(values: LocalAppearance): void {
+/** 把当前全局外观存到本机；onlyMissing 时只补尚未设置的项，不覆盖用户已选的项。 */
+export function snapshotLocalAppearance(values: LocalAppearance, onlyMissing = false): void {
+  let wrote = false;
   try {
-    if (values.theme) localStorage.setItem(LOCAL_THEME_KEY, values.theme);
-    if (values.accent) localStorage.setItem(LOCAL_ACCENT_KEY, values.accent);
-    if (values.style) localStorage.setItem(LOCAL_STYLE_KEY, values.style);
-    if (values.sceneStyle) localStorage.setItem(LOCAL_SCENE_STYLE_KEY, values.sceneStyle);
-    if (typeof values.tileScale === 'number') localStorage.setItem(LOCAL_SCALE_KEY, String(values.tileScale));
+    const write = (key: string, value: string) => {
+      if (onlyMissing && localStorage.getItem(key) !== null) return;
+      localStorage.setItem(key, value);
+      wrote = true;
+    };
+    if (values.theme) write(LOCAL_THEME_KEY, values.theme);
+    if (values.accent) write(LOCAL_ACCENT_KEY, values.accent);
+    if (values.style) write(LOCAL_STYLE_KEY, values.style);
+    if (values.sceneStyle) write(LOCAL_SCENE_STYLE_KEY, values.sceneStyle);
+    if (typeof values.tileScale === 'number') write(LOCAL_SCALE_KEY, String(values.tileScale));
   } catch {
     // 存储不可用时只影响本次刷新前的效果。
   }
-  window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
+  if (wrote) window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
 }

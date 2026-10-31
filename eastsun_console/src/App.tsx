@@ -36,7 +36,7 @@ import { useWeather } from './useWeather';
 import { useAlmanac } from './useAlmanac';
 import { AlmanacDialog } from './components/AlmanacDialog';
 import { weatherIcon } from './weather';
-import { applyAccent, applyStyle, applyTheme, daylight, resolveTheme, readLocalAppearance, isLocalAppearancePinned, snapshotLocalAppearance, LOCAL_APPEARANCE_EVENT } from './theme';
+import { applyAccent, applyStyle, applyTheme, daylight, resolveTheme, readLocalAppearance, followsGlobalAppearance, snapshotLocalAppearance, LOCAL_APPEARANCE_EVENT } from './theme';
 import type { LocalAppearance } from './theme';
 
 type Page = 'home' | 'room' | 'settings' | 'music' | 'category';
@@ -186,17 +186,17 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   useEffect(() => { if (style) applyStyle(style); }, [style]);
   // 情景模式按钮风格：全局存在 custom.json，显示范围为自定义时优先用本机选择。
   const sceneStyle = customAppearance ? (localAppearance.sceneStyle ?? server.custom?.sceneStyle) : server.custom?.sceneStyle;
-  // 显示范围为自定义时，首次连接就把当前全局外观固化到本机；之后管理员改全局不再影响这块屏幕，
-  // 直到用户在本机显示里主动点“恢复为跟随全局”。
+  // 显示范围为自定义时，把当前全局外观固化到本机：只补缺失项，不覆盖已有本机选择。
+  // 这样首次连接的屏幕也默认保留当时喜欢的全局值，之后全局改动不影响它；主动“恢复跟随全局”后不再固化。
   useEffect(() => {
-    if (!customAppearance || !server.status || isLocalAppearancePinned()) return;
+    if (!customAppearance || !server.status || followsGlobalAppearance()) return;
     const values: LocalAppearance = {};
     if (server.status.theme) values.theme = server.status.theme;
     if (server.status.accent) values.accent = server.status.accent;
     if (server.status.style) values.style = server.status.style;
     if (server.custom?.sceneStyle) values.sceneStyle = server.custom.sceneStyle;
     if (typeof server.status.tileScale === 'number') values.tileScale = server.status.tileScale;
-    snapshotLocalAppearance(values);
+    snapshotLocalAppearance(values, true);
   }, [customAppearance, server.status, server.custom?.sceneStyle]);
 
   // 主页时间 / 天气卡片缩放：每块屏幕各自保存在本机（localStorage），设置 → 自定义 → 主页显示里调整。

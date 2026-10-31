@@ -7,7 +7,7 @@ import type { AccountInfo, AdminSettings, AuditEntry, DiscoveredEntities, Person
 import type { CustomConfig, SceneStyle } from '../consoleClient';
 import type { ServerStatus } from '../consoleClient';
 import { SCENE_STYLES } from '../consoleClient';
-import { ACCENTS, STYLES, applyStyle } from '../theme';
+import { ACCENTS, STYLES } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
 import { connectionText } from './ConnectionBadge';
@@ -872,7 +872,7 @@ export function SettingsPage({ status, sceneStyle, user, ingress, firstRun, onLo
               {STYLES.map(({ value, label, hint }) => {
                 const current = (settings.style ?? 'glass26') === value;
                 return (
-                  <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={async () => { if (current) return; if (await save({ style: value }, setThemeMessage, `界面风格已切换为${label}`)) applyStyle(value); }}>
+                  <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={async () => { if (current) return; await save({ style: value }, setThemeMessage, `界面风格已切换为${label}`); }}>
                     <span className={`settings-style__preview settings-style__preview--${value}`} aria-hidden="true"><i /><i /><i /></span>
                     <span className="settings-style__text"><strong>{label}</strong><small>{hint}</small></span>
                   </button>
