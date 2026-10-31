@@ -97,7 +97,7 @@ const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean; 
   { id: 'devices', label: '设备', icon: ListChecks, adminOnly: true },
   { id: 'music', label: '音乐', icon: Music, adminOnly: true },
   { id: 'automations', label: '自动化', icon: Workflow, adminOnly: true },
-  { id: 'display', label: '显示', icon: LayoutTemplate, adminOnly: true },
+  { id: 'display', label: '全局显示', icon: LayoutTemplate, adminOnly: true },
   // 本机显示（主页版面、紧凑排版、HomeKit 比例、时间/天气缩放）只写 localStorage，不改共用配置，对所有登录用户开放。
   { id: 'local', label: '本机显示', icon: Smartphone },
   // 安全页（账户体系）在侧边栏自动登录下无意义：密码重置/增删子账户会影响控制台自身账户，
