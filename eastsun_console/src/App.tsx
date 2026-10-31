@@ -179,10 +179,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const themeMode = customAppearance ? (localAppearance.theme ?? server.status?.theme) : server.status?.theme;
   const theme = themeMode ? resolveTheme(themeMode, now, weather.forecast) : null;
   useEffect(() => { if (theme) applyTheme(theme); }, [theme]);
-  const accent = server.status?.accent;
+  const accent = customAppearance ? (localAppearance.accent ?? server.status?.accent) : server.status?.accent;
   useEffect(() => { if (accent) applyAccent(accent); }, [accent]);
   const style = customAppearance ? (localAppearance.style ?? server.status?.style) : server.status?.style;
   useEffect(() => { if (style) applyStyle(style); }, [style]);
+  // 情景模式按钮风格：全局存在 custom.json，显示范围为自定义时优先用本机选择。
+  const sceneStyle = customAppearance ? (localAppearance.sceneStyle ?? server.custom?.sceneStyle) : server.custom?.sceneStyle;
 
   // 主页时间 / 天气卡片缩放：每块屏幕各自保存在本机（localStorage），设置 → 自定义 → 主页显示里调整。
   useEffect(() => {
@@ -680,12 +682,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                     <SingleRowGrid className={`tile-grid--quick${hkGridClass}`} spans={favoriteSpans}>{favoriteDevices.map(favoriteCard)}</SingleRowGrid>
                   </div>
                 </div>
-                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
+                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={sceneStyle} />}
               </>
             ) : (
               <>
                 {homeCameras.length > 0 && <CameraBoard title="摄像头" cameras={homeCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
-                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
+                {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={sceneStyle} />}
                 <div className="section-heading">
                   <h2>常用设备 <em>· {favoriteDevices.length} 个</em></h2>
                   <div className="section-heading__actions">
@@ -717,7 +719,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         {page === 'room' && (
           <>
             {roomCameras.length > 0 && <CameraBoard title="摄像头" cameras={roomCameras} scale={tileScale} go2rtcEnabled={server.status?.go2rtc?.enabled ?? false} />}
-            {roomScenes.length > 0 && <SceneBoard title="情景模式" scenes={roomScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
+            {roomScenes.length > 0 && <SceneBoard title="情景模式" scenes={roomScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={sceneStyle} />}
             <div className="section-heading">
               <h2>设备与状态 <em>· {selectedRoomDevices.length} 个</em></h2>
               <div className="section-heading__actions">
@@ -740,7 +742,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               : <EmptyRoomCard name={selectedRoom.name} />}
           </>
         )}
-        {page === 'settings' && <SettingsPage status={server.status} user={authenticated.user} ingress={authenticated.ingress} firstRun={authenticated.firstRun} onLogout={onLogout} onAuthenticated={onAuthenticated} onOpenSetup={onOpenSetup} onExpired={settingsExpired} />}
+        {page === 'settings' && <SettingsPage status={server.status} sceneStyle={server.custom?.sceneStyle} user={authenticated.user} ingress={authenticated.ingress} firstRun={authenticated.firstRun} onLogout={onLogout} onAuthenticated={onAuthenticated} onOpenSetup={onOpenSetup} onExpired={settingsExpired} />}
         {page === 'music' && (musicUrl ? <MusicPage url={musicUrl} /> : <div className="empty-room"><p>还没有配置音乐界面，请到 设置 → 音乐 中填写地址。</p></div>)}
         {page === 'category' && (() => {
           const kind = selectedCategoryKind;

@@ -1,17 +1,17 @@
 import { ArrowDown, ArrowUp, Battery, Blinds, Cctv, DoorOpen, Droplets, Grid2x2, House, Lightbulb, Link2, Minus, Palette, Pencil, PersonStanding, Pin, Plus, RotateCcw, Search, Sparkles, Thermometer, Trash2, X, ZoomIn } from 'lucide-react';
 import { CollapsibleCard } from './CollapsibleCard';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import { ApiError, getCustom, getEntities, putCustom } from '../consoleApi';
 import type { DiscoveredEntities } from '../consoleApi';
-import type { CameraType, CatalogueEntity, CustomConfig, LabelInfo, MetricName } from '../consoleClient';
-import { cameraType } from '../consoleClient';
+import type { CameraType, CatalogueEntity, CustomConfig, LabelInfo, MetricName, SceneStyle } from '../consoleClient';
+import { cameraType, SCENE_STYLES } from '../consoleClient';
 import { entityKindLabel, isSceneTarget, sceneDisplayName } from '../haAdapter';
 import { findAnyIcon, findSceneIcon, DEVICE_ICONS, PHU_ICONS, ROOM_ICONS, SCENE_ICONS } from '../icons';
 import type { IconChoice } from '../icons';
 import { roomIcon } from '../appearance';
-import { LOCAL_APPEARANCE_EVENT, readLocalAppearance, resetLocalAppearance, saveLocalAppearance, STYLES } from '../theme';
-import type { Style, ThemeMode } from '../theme';
+import { ACCENTS, LOCAL_APPEARANCE_EVENT, readLocalAppearance, resetLocalAppearance, saveLocalAppearance, STYLES } from '../theme';
+import type { Accent, Style, ThemeMode } from '../theme';
 
 /** 设置列表中回显摄像头接入信息时隐藏账号密码：RTSP 只留主机端口路径，ONVIF 显示 onvif://主机:端口。 */
 function describeCamera(camera: CustomConfig['cameras'][number]): string {
@@ -613,13 +613,17 @@ interface LocalAppearanceSettingsProps {
   scope: 'global' | 'custom';
   /** 全局主题模式；本机没有单独设置时沿用。 */
   theme: ThemeMode;
+  /** 全局强调色；本机没有单独设置时沿用。 */
+  accent: Accent;
   /** 全局界面风格；本机没有单独设置时沿用。 */
   style: Style;
+  /** 全局情景模式按钮风格；本机没有单独设置时沿用。 */
+  sceneStyle: SceneStyle;
   /** 全局格子大小（80–120）；本机没有单独设置时沿用。 */
   tileScale: number;
 }
 
-export function LocalAppearanceSettings({ scope, theme, style, tileScale }: LocalAppearanceSettingsProps) {
+export function LocalAppearanceSettings({ scope, theme, accent, style, sceneStyle, tileScale }: LocalAppearanceSettingsProps) {
   const [local, setLocal] = useState(readLocalAppearance);
   useEffect(() => {
     const sync = () => setLocal(readLocalAppearance());
@@ -630,19 +634,21 @@ export function LocalAppearanceSettings({ scope, theme, style, tileScale }: Loca
   if (scope !== 'custom') {
     return (
       <section className="settings-card">
-        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题、风格与格子大小</h3><p>当前由管理员统一设置（全局模式），所有屏幕共用。管理员在“全局显示”里改为自定义后，这里会出现本机专属的主题、风格与格子大小设置。</p></div></div>
+        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题、强调色、风格与格子大小</h3><p>当前由管理员统一设置（全局模式），所有屏幕共用。管理员在“全局显示”里改为自定义后，这里会出现本机专属的主题、强调色、风格、情景按钮风格与格子大小设置。</p></div></div>
       </section>
     );
   }
 
   const currentTheme = local.theme ?? theme;
+  const currentAccent = local.accent ?? accent;
   const currentStyle = local.style ?? style;
+  const currentSceneStyle = local.sceneStyle ?? sceneStyle;
   const currentScale = local.tileScale ?? tileScale;
-  const hasLocal = Boolean(local.theme || local.style || local.tileScale);
+  const hasLocal = Boolean(local.theme || local.accent || local.style || local.sceneStyle || local.tileScale);
   return (
     <>
       <section className="settings-card">
-        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题</h3><p>仅对当前这块屏幕生效。自动模式按本屏天气的日出日落切换深浅色；未单独设置时跟随全局。</p></div></div>
+        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题</h3><p>仅对当前这块屏幕生效。自动模式按本屏天气的日出日落切换深浅色；强调色用于选中状态、主按钮和导航高亮。未单独设置时跟随全局。</p></div></div>
         <div className="settings-row">
           <span>主题</span>
           <div className="settings-segmented" role="radiogroup" aria-label="本机主题">
@@ -651,9 +657,19 @@ export function LocalAppearanceSettings({ scope, theme, style, tileScale }: Loca
             ))}
           </div>
         </div>
+        <div className="settings-row settings-row--accent">
+          <span>强调色</span>
+          <div className="settings-accents" role="radiogroup" aria-label="本机强调色">
+            {ACCENTS.map(({ value, label, swatch }) => (
+              <button key={value} type="button" role="radio" aria-checked={currentAccent === value} aria-label={label} title={label} style={{ '--swatch': swatch } as CSSProperties} onClick={() => { if (currentAccent !== value) saveLocalAppearance({ accent: value }); }}>
+                <span aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
       <section className="settings-card">
-        <div className="settings-card__heading"><span className="tile__chip"><Sparkles size={20} /></span><div><h3>风格</h3><p>仅对当前这块屏幕生效，可与主题、强调色任意组合；未单独设置时跟随全局。</p></div></div>
+        <div className="settings-card__heading"><span className="tile__chip"><Sparkles size={20} /></span><div><h3>风格</h3><p>仅对当前这块屏幕生效，可与主题、强调色任意组合；情景模式按钮可单独选外观。未单独设置时跟随全局。</p></div></div>
         <div className="settings-styles" role="radiogroup" aria-label="本机界面风格">
           {STYLES.map(({ value, label, hint }) => {
             const current = currentStyle === value;
@@ -664,6 +680,17 @@ export function LocalAppearanceSettings({ scope, theme, style, tileScale }: Loca
               </button>
             );
           })}
+        </div>
+        <div className="scene-style-row">
+          <span className="scene-style-row__label">情景模式按钮风格</span>
+          <div className="scene-style-picker" role="radiogroup" aria-label="本机情景模式按钮风格">
+            {SCENE_STYLES.map(({ value, label }) => (
+              <button key={value} type="button" role="radio" aria-checked={currentSceneStyle === value} className="scene-style" onClick={() => { if (currentSceneStyle !== value) saveLocalAppearance({ sceneStyle: value }); }}>
+                <span className={`scene-style__swatch scene-style__swatch--${value}`} aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
       <section className="settings-card">

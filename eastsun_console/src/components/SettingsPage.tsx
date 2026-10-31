@@ -16,6 +16,8 @@ import { EntityFilter } from './EntityFilter';
 
 interface SettingsPageProps {
   status: ServerStatus | null;
+  /** 全局情景按钮风格（custom.json），供非管理员在本机显示里作为默认值展示。 */
+  sceneStyle?: SceneStyle;
   /** 当前登录账户；未登录时为 undefined（理论上不会进入此页）。 */
   user?: { username: string; isAdmin: boolean; auto?: boolean };
   /** 是否从 HA 侧边栏 Ingress 进入（访客免登录，设置时需验证管理员）。 */
@@ -181,7 +183,7 @@ function auditTime(entry: AuditEntry): string {
 }
 
 /** 管理设置；账户系统下任何已登录用户进入，非管理员仅可见「登录」板块，管理员可见全部板块。 */
-export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuthenticated, onOpenSetup, onExpired }: SettingsPageProps) {
+export function SettingsPage({ status, sceneStyle, user, ingress, firstRun, onLogout, onAuthenticated, onOpenSetup, onExpired }: SettingsPageProps) {
   const formId = useId();
   const isAdmin = user?.isAdmin ?? false;
   const isAuto = Boolean(user?.auto);
@@ -544,6 +546,14 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             </div>
           </section>
           <HomeDisplaySettings />
+          <LocalAppearanceSettings
+            scope={status?.appearanceScope ?? 'global'}
+            theme={status?.theme ?? 'auto'}
+            accent={status?.accent ?? 'amber'}
+            style={status?.style ?? 'glass26'}
+            sceneStyle={sceneStyle ?? 'sharp'}
+            tileScale={status?.tileScale ?? 100}
+          />
         </div>
       );
     }
@@ -552,6 +562,14 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
       <div className="settings">
         <LoginSection user={user} ingress={ingress} onLogout={onLogout} onAuthenticated={onAuthenticated} />
         <HomeDisplaySettings />
+        <LocalAppearanceSettings
+          scope={status?.appearanceScope ?? 'global'}
+          theme={status?.theme ?? 'auto'}
+          accent={status?.accent ?? 'amber'}
+          style={status?.style ?? 'glass26'}
+          sceneStyle={sceneStyle ?? 'sharp'}
+          tileScale={status?.tileScale ?? 100}
+        />
       </div>
     );
   }
@@ -638,7 +656,9 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
           <LocalAppearanceSettings
             scope={status?.appearanceScope ?? 'global'}
             theme={status?.theme ?? 'auto'}
+            accent={status?.accent ?? 'amber'}
             style={status?.style ?? 'glass26'}
+            sceneStyle={sceneStyle ?? 'sharp'}
             tileScale={status?.tileScale ?? 100}
           />
         </>}
@@ -808,9 +828,9 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
           </section>
 
           <section className="settings-card">
-            <div className="settings-card__heading"><span className="tile__chip"><Smartphone size={20} /></span><div><h3>显示范围</h3><p>控制主题、风格、格子大小是由所有屏幕共用，还是允许每块屏幕在“本机显示”里单独设置。切换后立即通知所有屏幕刷新；自定义时，没有单独设置过的屏幕继续沿用下面的全局值。</p></div></div>
+            <div className="settings-card__heading"><span className="tile__chip"><Smartphone size={20} /></span><div><h3>显示范围</h3><p>控制主题（含强调色）、风格（含情景按钮风格）、格子大小是由所有屏幕共用，还是允许每块屏幕在“本机显示”里单独设置。切换后立即通知所有屏幕刷新；自定义时，没有单独设置过的屏幕继续沿用下面的全局值。</p></div></div>
             <div className="settings-row">
-              <span id={`${formId}-appearance-scope`}>主题、风格与格子大小</span>
+              <span id={`${formId}-appearance-scope`}>主题（含强调色）、风格（含情景按钮风格）与格子大小</span>
               <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-appearance-scope`}>
                 {([['global', '全局'], ['custom', '自定义']] as const).map(([value, label]) => (
                   <button key={value} type="button" role="radio" aria-checked={(settings.appearanceScope ?? 'global') === value} onClick={() => { if ((settings.appearanceScope ?? 'global') !== value) void save({ appearanceScope: value }, setThemeMessage, value === 'global' ? '已改为全局：所有屏幕共用主题、风格与格子大小' : '已改为自定义：每块屏幕可在本机显示里单独设置'); }}>{label}</button>

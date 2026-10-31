@@ -1,5 +1,6 @@
 /** 主题：浅色 / 深色 / 自动（日出到日落浅色，其余深色）。设置为全局（设置 → 显示），实际主题按本屏的天气与时间计算。 */
 import type { Forecast } from './weather';
+import type { SceneStyle } from './consoleClient';
 
 export type ThemeMode = 'dark' | 'light' | 'auto';
 export type Theme = 'dark' | 'light';
@@ -142,16 +143,26 @@ export function cachedStyle(): Style {
   }
 }
 
-/** 本机显示（设置 → 本机显示）：显示范围为“自定义”时，每块屏幕自己的主题 / 风格 / 格子大小。 */
+/** 本机显示（设置 → 本机显示）：显示范围为“自定义”时，每块屏幕自己的主题、强调色、风格与格子大小。 */
 const LOCAL_THEME_KEY = 'eastsun.appearance.theme';
+const LOCAL_ACCENT_KEY = 'eastsun.appearance.accent';
 const LOCAL_STYLE_KEY = 'eastsun.appearance.style';
+const LOCAL_SCENE_STYLE_KEY = 'eastsun.appearance.sceneStyle';
 const LOCAL_SCALE_KEY = 'eastsun.appearance.scale';
 export const LOCAL_APPEARANCE_EVENT = 'eastsun-appearance';
 
 export interface LocalAppearance {
   theme?: ThemeMode;
+  accent?: Accent;
   style?: Style;
+  /** 情景模式按钮风格；未设置时沿用全局 custom.json。 */
+  sceneStyle?: SceneStyle;
   tileScale?: number;
+}
+
+function isSceneStyle(value: string | null): value is SceneStyle {
+  return value === 'sharp' || value === 'block' || value === 'capsule' || value === 'soft' || value === 'glass'
+    || value === 'gradient' || value === 'outline' || value === 'solid' || value === 'circle';
 }
 
 /** 读取本机外观设置；没有设置过的项留空，由调用方回退到全局设置。 */
@@ -160,8 +171,12 @@ export function readLocalAppearance(): LocalAppearance {
   try {
     const theme = localStorage.getItem(LOCAL_THEME_KEY);
     if (theme === 'dark' || theme === 'light' || theme === 'auto') result.theme = theme;
+    const accent = localStorage.getItem(LOCAL_ACCENT_KEY);
+    if (isAccent(accent)) result.accent = accent;
     const style = localStorage.getItem(LOCAL_STYLE_KEY);
     if (isStyle(style)) result.style = style;
+    const sceneStyle = localStorage.getItem(LOCAL_SCENE_STYLE_KEY);
+    if (isSceneStyle(sceneStyle)) result.sceneStyle = sceneStyle;
     const scale = Number(localStorage.getItem(LOCAL_SCALE_KEY));
     if (Number.isFinite(scale) && scale >= 80 && scale <= 120) result.tileScale = Math.round(scale);
   } catch {
@@ -174,7 +189,9 @@ export function readLocalAppearance(): LocalAppearance {
 export function saveLocalAppearance(patch: LocalAppearance): void {
   try {
     if (patch.theme) localStorage.setItem(LOCAL_THEME_KEY, patch.theme);
+    if (patch.accent) localStorage.setItem(LOCAL_ACCENT_KEY, patch.accent);
     if (patch.style) localStorage.setItem(LOCAL_STYLE_KEY, patch.style);
+    if (patch.sceneStyle) localStorage.setItem(LOCAL_SCENE_STYLE_KEY, patch.sceneStyle);
     if (typeof patch.tileScale === 'number') localStorage.setItem(LOCAL_SCALE_KEY, String(patch.tileScale));
   } catch {
     // 存储不可用时只影响本次刷新前的效果。
@@ -186,7 +203,9 @@ export function saveLocalAppearance(patch: LocalAppearance): void {
 export function resetLocalAppearance(): void {
   try {
     localStorage.removeItem(LOCAL_THEME_KEY);
+    localStorage.removeItem(LOCAL_ACCENT_KEY);
     localStorage.removeItem(LOCAL_STYLE_KEY);
+    localStorage.removeItem(LOCAL_SCENE_STYLE_KEY);
     localStorage.removeItem(LOCAL_SCALE_KEY);
   } catch {
     // 忽略存储不可用。
