@@ -1396,6 +1396,7 @@ class ConsoleServer:
             for entity in self.discovered["entities"] if entity.get("metrics")
         }
         old_occupancy = self.store.custom.get("occupancy", {})
+        old_custom = self.store.custom
         custom = clean_custom(body, known_entities=known_entities, known_metrics=known_metrics,
                               known_battery_entities=known_battery_entities)
         self.store.save_custom(custom)
@@ -1403,8 +1404,15 @@ class ConsoleServer:
         self.onvif.invalidate()
         # 运动截图总开关关闭时，配置变更不重启监测。
         self.motion.sync(custom.get("cameras", []) if self.store.settings.motion_capture else [])
-        self.store.audit("custom_changed", client_ip(request), username=session["username"],
-                         rooms=len(custom["rooms"]), assignments=len(custom["assignments"]), scenes=len(custom["scenes"]))
+        scene_only = old_custom.get("sceneStyle") != custom.get("sceneStyle") and {
+            key: value for key, value in old_custom.items() if key != "sceneStyle"
+        } == {key: value for key, value in custom.items() if key != "sceneStyle"}
+        if scene_only:
+            self.store.audit("settings_changed", client_ip(request), username=session["username"],
+                             fields=["sceneStyle"])
+        else:
+            self.store.audit("custom_changed", client_ip(request), username=session["username"],
+                             rooms=len(custom["rooms"]), assignments=len(custom["assignments"]), scenes=len(custom["scenes"]))
         await self.broadcast({"type": "custom", "custom": self.public_custom()})
         # 有人传感器配置变化后立即重算并推送区域占用状态。
         if custom.get("occupancy", {}) != old_occupancy:

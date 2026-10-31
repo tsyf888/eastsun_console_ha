@@ -73,6 +73,7 @@ AUDIT_FIELD_LABELS = {
     "accent": "强调色",
     "style": "界面风格",
     "appearanceScope": "显示范围",
+    "sceneStyle": "情景模式按钮风格",
     "seasonRules": "季节规则",
     "season": "季节",
     "tileScale": "格子大小",
