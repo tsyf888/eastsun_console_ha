@@ -58,6 +58,8 @@ export interface AuditEntry {
   ip: string;
   /** 操作账户名（账户系统上线后由后端写入；旧记录可能为空）。 */
   user?: string;
+  /** 后端写入的中文解释；旧记录没有。 */
+  text?: string;
   [key: string]: unknown;
 }
 

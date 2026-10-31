@@ -128,9 +128,13 @@ function auditDetail(entry: AuditEntry, entityName: (id: string) => string): str
     return `${target}${entry.enabled ? '开启' : '关闭'}${entry.ok ? '' : ` · 失败：${String(entry.error)}`}`;
   }
   if (entry.event === 'filter_changed') return `${entry.mode === 'whitelist' ? '白名单' : '黑名单'}（黑名单 ${String(entry.blacklist)} 项，白名单 ${String(entry.whitelist)} 项）`;
-  if (entry.event === 'settings_changed' && Array.isArray(entry.fields)) return entry.fields.join('、');
+  if (entry.event === 'settings_changed' && Array.isArray(entry.fields)) {
+    // 后端写入的中文解释更完整；旧记录没有 text 时退回字段列表。
+    return typeof entry.text === 'string' && entry.text ? entry.text : entry.fields.join('、');
+  }
   if (entry.event === 'auto_login') return '通过 HA 侧边栏身份自动进入';
   if (entry.event === 'login_failed' && entry.locked_seconds) return `锁定 ${String(entry.locked_seconds)} 秒`;
+  if (typeof entry.text === 'string' && entry.text) return entry.text;
   return '';
 }
 
@@ -939,7 +943,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             <div className="settings-card__heading"><span className="tile__chip"><History size={20} /></span><div><h3>日志记录</h3><p>按日期查询、分页查看登录、设置、布局与设备、场景控制记录；未来会包含告警记录。按账户区分，标明是谁操作了什么，可导出 CSV；不含令牌和密码。</p></div></div>
             <div className="settings-row">
               <span id={`${formId}-audit-retention`}>保留时间</span>
-              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-audit-retention`}>
+              <div className="settings-segmented settings-segmented--retention" role="radiogroup" aria-labelledby={`${formId}-audit-retention`}>
                 {([[30, '1 个月'], [90, '3 个月'], [180, '6 个月'], [365, '1 年'], [730, '2 年'], [1095, '3 年'], [0, '永久']] as const).map(([days, label]) => (
                   <button key={days} type="button" role="radio" aria-checked={(settings.auditRetentionDays ?? 365) === days} onClick={() => { if ((settings.auditRetentionDays ?? 365) !== days) void save({ auditRetentionDays: days }, setAuditMessage, `日志保留时间已设为${label}`); }}>{label}</button>
                 ))}

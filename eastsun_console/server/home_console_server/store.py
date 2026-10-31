@@ -43,6 +43,126 @@ AUDIT_MAX_BYTES = 50 * 1024 * 1024  # 单个月份文件上限，超过后滚动
 AUDIT_FILE_RE = re.compile(r"audit-(\d{4}-\d{2})(?:\.part(\d+))?\.log")  # 按月归档，可分片
 AUDIT_DAILY_RE = re.compile(r"audit-(\d{4}-\d{2})-(\d{2})\.log")  # 旧版按天文件，仅用于启动迁移
 
+# 日志中文解释：写入时额外记录 text，方便直接看日志文件或导出 CSV 时理解。
+AUDIT_EVENT_LABELS = {
+    "login": "账户登录",
+    "auto_login": "自动登录",
+    "login_failed": "密码错误",
+    "logout": "退出登录",
+    "setup_completed": "完成首次引导",
+    "password_changed": "修改密码",
+    "account_created": "新增子账户",
+    "account_deleted": "删除子账户",
+    "settings_changed": "修改设置",
+    "filter_changed": "修改设备筛选",
+    "automation_toggled": "开关自动化",
+    "custom_changed": "修改房间与情景",
+    "layout_changed": "修改布局",
+    "season_rules_synced": "同步季节规则",
+    "service_call": "操控设备",
+    "scene_call": "操控场景",
+}
+AUDIT_FIELD_LABELS = {
+    "haUrl": "HA 地址",
+    "haToken(更新)": "HA 令牌（更新）",
+    "haToken(清除)": "HA 令牌（清除）",
+    "dataSource": "数据来源",
+    "controlEnabled": "设备控制开关",
+    "motionCapture": "运动检测截图",
+    "theme": "主题",
+    "accent": "强调色",
+    "style": "界面风格",
+    "seasonRules": "季节规则",
+    "season": "季节",
+    "tileScale": "格子大小",
+    "homeTitle": "首页标题",
+    "brandTitle": "家庭名称",
+    "musicUrl": "音乐地址",
+    "go2rtcUrl": "go2rtc 地址",
+    "allOffKinds": "一键关闭类别",
+    "allOffScopes": "一键关闭区域",
+    "allOffEntities": "一键关闭额外设备",
+    "allOffExcludes": "一键关闭排除设备",
+    "people": "人员在家配置",
+    "auditRetentionDays": "日志保留时间",
+    "filterMode": "设备过滤方式",
+    "blacklist": "设备黑名单",
+    "whitelist": "设备白名单",
+}
+AUDIT_SERVICE_LABELS = {
+    "turn_on": "打开",
+    "turn_off": "关闭",
+    "toggle": "切换",
+    "open_cover": "打开",
+    "close_cover": "关闭",
+    "stop_cover": "停止",
+    "set_cover_position": "调整开合度",
+    "set_hvac_mode": "切换模式",
+    "set_temperature": "设置温度",
+    "set_fan_mode": "设置风速",
+    "set_swing_mode": "设置摆风",
+    "media_play_pause": "播放 / 暂停",
+    "media_stop": "停止播放",
+    "volume_set": "设置音量",
+    "volume_mute": "静音",
+    "set_percentage": "设置档位",
+    "set_preset_mode": "设置预设模式",
+    "oscillate": "切换摇头",
+    "start": "开始",
+    "pause": "暂停",
+    "return_to_base": "回充",
+    "locate": "寻找设备",
+    "set_fan_speed": "设置档位",
+    "select_option": "选择选项",
+    "press": "按下",
+}
+
+
+def describe_audit(event: str, username: str, detail: dict[str, Any]) -> str:
+    """把事件代码与英文细节翻成一句中文解释，写入日志的 text 字段。"""
+    label = AUDIT_EVENT_LABELS.get(event, event)
+    if event in ("service_call", "scene_call"):
+        entity = str(detail.get("entity", ""))
+        action = "执行" if event == "scene_call" else AUDIT_SERVICE_LABELS.get(str(detail.get("service", "")), str(detail.get("service", "")))
+        text = f"{label}：{entity} · {action}" if entity else f"{label} · {action}"
+        if detail.get("ok") is False:
+            text += f"（失败：{detail.get('error')}）"
+        return text
+    if event == "automation_toggled":
+        entity = str(detail.get("entity", ""))
+        action = "开启" if detail.get("enabled") else "关闭"
+        text = f"{action}自动化：{entity}" if entity else f"{action}自动化"
+        return text + (f"（失败：{detail.get('error')}）" if detail.get("ok") is False else "")
+    if event == "settings_changed":
+        fields = detail.get("fields") if isinstance(detail.get("fields"), list) else []
+        names = [AUDIT_FIELD_LABELS.get(str(field), str(field)) for field in fields]
+        return f"{label}：{'、'.join(names)}" if names else label
+    if event == "filter_changed":
+        mode = "白名单" if detail.get("mode") == "whitelist" else "黑名单"
+        return f"{label}：{mode}（黑名单 {detail.get('blacklist', 0)} 项、白名单 {detail.get('whitelist', 0)} 项）"
+    if event == "custom_changed":
+        return f"{label}：房间 {detail.get('rooms', 0)} 个、设备归属 {detail.get('assignments', 0)} 项、情景 {detail.get('scenes', 0)} 个"
+    if event == "layout_changed":
+        return f"{label}：常用设备 {detail.get('favorites', 0)} 项"
+    if event == "season_rules_synced":
+        counts = [f"{AUDIT_SEASON_LABELS[key]} {len(detail.get(key) or [])}" for key in ("created", "updated", "deleted")]
+        return f"{label}：{'、'.join(counts)}"
+    if event == "login_failed":
+        locked = detail.get("locked_seconds")
+        return f"{label}：账户 {username}" + (f"（锁定 {locked} 秒）" if locked else "")
+    if event in ("account_created", "account_deleted"):
+        return f"{label}：{detail.get('target', '')}"
+    if event == "setup_completed":
+        return f"{label}：管理员改为 {username}"
+    if event == "login":
+        return f"{label}：{username}" + ("（HA 侧边栏临时登录）" if detail.get("temporary") else "")
+    if event == "auto_login":
+        return f"{label}：{username}（通过 HA 侧边栏身份进入）"
+    return f"{label}：{username}" if username else label
+
+
+AUDIT_SEASON_LABELS = {"created": "创建", "updated": "更新", "deleted": "删除"}
+
 # ---------- 账户系统：accounts.json 独立文件，便于 Docker/compose 映射备份 ----------
 
 # 默认管理员：首次启动自动创建，登录后引导修改账户名与密码；完成后 setup_completed=True。
@@ -950,8 +1070,10 @@ class Store:
         前端按浏览器时区显示与按日期筛选都以 ts 为准（容器时区通常是 UTC）。
         记录按月写入 audit-YYYY-MM.log，超过大小上限时滚动成 .partN.log；
         跨月时顺带按保留天数清理过期文件。写入失败只记 warning，不拖垮业务请求。
+        每条记录额外带 text 中文解释，日志文件与 CSV 导出都能直接读懂。
         """
-        entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "ts": round(time.time(), 3), "event": event, "ip": ip, "user": username, **detail}
+        entry = {"time": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "ts": round(time.time(), 3), "event": event, "ip": ip, "user": username,
+                 "text": describe_audit(event, username, detail), **detail}
         month = datetime.now().strftime("%Y-%m")
         try:
             if month != self._audit_month:
