@@ -149,6 +149,8 @@ const LOCAL_ACCENT_KEY = 'eastsun.appearance.accent';
 const LOCAL_STYLE_KEY = 'eastsun.appearance.style';
 const LOCAL_SCENE_STYLE_KEY = 'eastsun.appearance.sceneStyle';
 const LOCAL_SCALE_KEY = 'eastsun.appearance.scale';
+/** 主动点过“恢复为跟随全局”后置为 1：之后即使没有本机设置，也不再自动固化全局值。 */
+const LOCAL_FOLLOW_KEY = 'eastsun.appearance.follow';
 export const LOCAL_APPEARANCE_EVENT = 'eastsun-appearance';
 
 export interface LocalAppearance {
@@ -185,9 +187,10 @@ export function readLocalAppearance(): LocalAppearance {
   return result;
 }
 
-/** 保存本机外观并通知页面立即生效。 */
+/** 保存本机外观并通知页面立即生效；手动设置任意一项后不再处于“主动跟随全局”状态。 */
 export function saveLocalAppearance(patch: LocalAppearance): void {
   try {
+    localStorage.removeItem(LOCAL_FOLLOW_KEY);
     if (patch.theme) localStorage.setItem(LOCAL_THEME_KEY, patch.theme);
     if (patch.accent) localStorage.setItem(LOCAL_ACCENT_KEY, patch.accent);
     if (patch.style) localStorage.setItem(LOCAL_STYLE_KEY, patch.style);
@@ -199,7 +202,7 @@ export function saveLocalAppearance(patch: LocalAppearance): void {
   window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
 }
 
-/** 清除本机外观设置，回到跟随全局。 */
+/** 清除本机外观设置，回到跟随全局；之后全局改动都会实时同步到这块屏幕。 */
 export function resetLocalAppearance(): void {
   try {
     localStorage.removeItem(LOCAL_THEME_KEY);
@@ -207,8 +210,34 @@ export function resetLocalAppearance(): void {
     localStorage.removeItem(LOCAL_STYLE_KEY);
     localStorage.removeItem(LOCAL_SCENE_STYLE_KEY);
     localStorage.removeItem(LOCAL_SCALE_KEY);
+    localStorage.setItem(LOCAL_FOLLOW_KEY, '1');
   } catch {
     // 忽略存储不可用。
+  }
+  window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
+}
+
+/** 本机外观是否已经定下来（有本机设置，或主动选择过跟随全局）。 */
+export function isLocalAppearancePinned(): boolean {
+  try {
+    if (localStorage.getItem(LOCAL_FOLLOW_KEY) === '1') return true;
+    return Object.keys(readLocalAppearance()).length > 0;
+  } catch {
+    // 存储不可用时按已固定处理，避免每次渲染都重复写入。
+    return true;
+  }
+}
+
+/** 首次进入自定义显示范围时，把当前全局外观存一份到本机，之后全局改动不再影响这块屏幕。 */
+export function snapshotLocalAppearance(values: LocalAppearance): void {
+  try {
+    if (values.theme) localStorage.setItem(LOCAL_THEME_KEY, values.theme);
+    if (values.accent) localStorage.setItem(LOCAL_ACCENT_KEY, values.accent);
+    if (values.style) localStorage.setItem(LOCAL_STYLE_KEY, values.style);
+    if (values.sceneStyle) localStorage.setItem(LOCAL_SCENE_STYLE_KEY, values.sceneStyle);
+    if (typeof values.tileScale === 'number') localStorage.setItem(LOCAL_SCALE_KEY, String(values.tileScale));
+  } catch {
+    // 存储不可用时只影响本次刷新前的效果。
   }
   window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
 }

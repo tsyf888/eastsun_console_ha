@@ -1301,10 +1301,7 @@ class ConsoleServer:
             await self.reconnect()
         if season_sync or reconnect:
             self.season.schedule()
-        # 显示范围为自定义时，全局外观只保存不推送：各屏幕正在用本机设置，等切回全局时再统一生效。
-        appearance_only = set(changed) <= {"theme", "accent", "style", "tileScale"}
-        if not (settings.appearance_scope == "custom" and appearance_only):
-            await self.broadcast(self.status_message())
+        await self.broadcast(self.status_message())
         return web.json_response(self._settings_payload())
 
     def _entities_payload(self) -> dict[str, Any]:
@@ -1399,7 +1396,6 @@ class ConsoleServer:
             for entity in self.discovered["entities"] if entity.get("metrics")
         }
         old_occupancy = self.store.custom.get("occupancy", {})
-        old_custom = self.store.custom
         custom = clean_custom(body, known_entities=known_entities, known_metrics=known_metrics,
                               known_battery_entities=known_battery_entities)
         self.store.save_custom(custom)
@@ -1409,12 +1405,7 @@ class ConsoleServer:
         self.motion.sync(custom.get("cameras", []) if self.store.settings.motion_capture else [])
         self.store.audit("custom_changed", client_ip(request), username=session["username"],
                          rooms=len(custom["rooms"]), assignments=len(custom["assignments"]), scenes=len(custom["scenes"]))
-        # 显示范围为自定义时，仅修改情景按钮风格只保存、不推送，避免影响各屏幕正在使用的本机风格。
-        scene_only = self.store.settings.appearance_scope == "custom" and {
-            key: value for key, value in old_custom.items() if key != "sceneStyle"
-        } == {key: value for key, value in custom.items() if key != "sceneStyle"}
-        if not scene_only:
-            await self.broadcast({"type": "custom", "custom": self.public_custom()})
+        await self.broadcast({"type": "custom", "custom": self.public_custom()})
         # 有人传感器配置变化后立即重算并推送区域占用状态。
         if custom.get("occupancy", {}) != old_occupancy:
             await self.broadcast(self.status_message())
