@@ -11,7 +11,7 @@ import { ACCENTS, STYLES, applyStyle } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
 import { connectionText } from './ConnectionBadge';
-import { CustomizeSettings, HomeDisplaySettings } from './CustomizeSettings';
+import { CustomizeSettings, HomeDisplaySettings, LocalAppearanceSettings } from './CustomizeSettings';
 import { EntityFilter } from './EntityFilter';
 
 interface SettingsPageProps {
@@ -633,7 +633,15 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
         {tab === 'connection' && <PeopleSettings settings={settings} onSettings={setSettings} onExpired={onExpired} discovered={discovered} />}
 
         {tab === 'rooms' && <CustomizeSettings connected={Boolean(connected)} onExpired={onExpired} />}
-        {tab === 'local' && <HomeDisplaySettings />}
+        {tab === 'local' && <>
+          <HomeDisplaySettings />
+          <LocalAppearanceSettings
+            scope={status?.appearanceScope ?? 'global'}
+            theme={status?.theme ?? 'auto'}
+            style={status?.style ?? 'glass26'}
+            tileScale={status?.tileScale ?? 100}
+          />
+        </>}
 
         {tab === 'devices' && <>
           <section className="settings-card">
@@ -796,6 +804,19 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
             <div className="settings-card__heading"><span className="tile__chip"><House size={20} /></span><div><h3>名称</h3></div></div>
             <label className="settings-field"><span>家庭名称</span><input type="text" value={settings.brandTitle ?? '家庭控制'} maxLength={10} onChange={(e) => { const value = e.target.value; setSettings({ ...settings, brandTitle: value }); void save({ brandTitle: value }, setThemeMessage, '家庭名称已保存'); }} placeholder="家庭控制" /><small>显示在导航栏顶部与网页标题，最长 10 个中文字</small></label>
             <label className="settings-field"><span>首页标题</span><input type="text" value={settings.homeTitle} maxLength={12} onChange={(e) => { const value = e.target.value; setSettings({ ...settings, homeTitle: value }); void save({ homeTitle: value }, setThemeMessage, '首页标题已保存'); }} placeholder="我的家庭" /></label>
+            <FormMessage message={themeMessage} />
+          </section>
+
+          <section className="settings-card">
+            <div className="settings-card__heading"><span className="tile__chip"><Smartphone size={20} /></span><div><h3>显示范围</h3><p>控制主题、风格、格子大小是由所有屏幕共用，还是允许每块屏幕在“本机显示”里单独设置。切换后立即通知所有屏幕刷新；自定义时，没有单独设置过的屏幕继续沿用下面的全局值。</p></div></div>
+            <div className="settings-row">
+              <span id={`${formId}-appearance-scope`}>主题、风格与格子大小</span>
+              <div className="settings-segmented" role="radiogroup" aria-labelledby={`${formId}-appearance-scope`}>
+                {([['global', '全局'], ['custom', '自定义']] as const).map(([value, label]) => (
+                  <button key={value} type="button" role="radio" aria-checked={(settings.appearanceScope ?? 'global') === value} onClick={() => { if ((settings.appearanceScope ?? 'global') !== value) void save({ appearanceScope: value }, setThemeMessage, value === 'global' ? '已改为全局：所有屏幕共用主题、风格与格子大小' : '已改为自定义：每块屏幕可在本机显示里单独设置'); }}>{label}</button>
+                ))}
+              </div>
+            </div>
             <FormMessage message={themeMessage} />
           </section>
 

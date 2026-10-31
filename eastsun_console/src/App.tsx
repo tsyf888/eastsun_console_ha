@@ -36,7 +36,7 @@ import { useWeather } from './useWeather';
 import { useAlmanac } from './useAlmanac';
 import { AlmanacDialog } from './components/AlmanacDialog';
 import { weatherIcon } from './weather';
-import { applyAccent, applyStyle, applyTheme, daylight, resolveTheme } from './theme';
+import { applyAccent, applyStyle, applyTheme, daylight, resolveTheme, readLocalAppearance, LOCAL_APPEARANCE_EVENT } from './theme';
 
 type Page = 'home' | 'room' | 'settings' | 'music' | 'category';
 
@@ -166,13 +166,22 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   }, [confirmAllOff]);
   /** 页面切换方向：1 从下方进入（导航中往下），-1 从上方进入，0 淡入。 */
   const [enterDirection, setEnterDirection] = useState<-1 | 0 | 1>(0);
+  // 本机外观（设置 → 本机显示）：显示范围为“自定义”时，每块屏幕可自行选择主题、风格、格子大小。
+  const [localAppearance, setLocalAppearance] = useState(readLocalAppearance);
+  useEffect(() => {
+    const sync = () => setLocalAppearance(readLocalAppearance());
+    window.addEventListener(LOCAL_APPEARANCE_EVENT, sync);
+    return () => window.removeEventListener(LOCAL_APPEARANCE_EVENT, sync);
+  }, []);
+  const appearanceScope = server.status?.appearanceScope ?? 'global';
+  const customAppearance = appearanceScope === 'custom';
   // 主题：服务端设置的模式 + 本屏的日出日落（自动模式），每 15 秒随时钟重新计算，变化时才应用。
-  const themeMode = server.status?.theme;
+  const themeMode = customAppearance ? (localAppearance.theme ?? server.status?.theme) : server.status?.theme;
   const theme = themeMode ? resolveTheme(themeMode, now, weather.forecast) : null;
   useEffect(() => { if (theme) applyTheme(theme); }, [theme]);
   const accent = server.status?.accent;
   useEffect(() => { if (accent) applyAccent(accent); }, [accent]);
-  const style = server.status?.style;
+  const style = customAppearance ? (localAppearance.style ?? server.status?.style) : server.status?.style;
   useEffect(() => { if (style) applyStyle(style); }, [style]);
 
   // 主页时间 / 天气卡片缩放：每块屏幕各自保存在本机（localStorage），设置 → 自定义 → 主页显示里调整。
@@ -375,7 +384,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const homeTitle = server.status?.homeTitle || '我的家庭';
   // 音乐页内嵌地址（设置 → 音乐）；未配置时侧栏不显示入口。
   const musicUrl = (server.status?.musicUrl ?? '').trim();
-  const tileScale = (server.status?.tileScale ?? 100) / 100;
+  const tileScalePercent = customAppearance ? (localAppearance.tileScale ?? server.status?.tileScale ?? 100) : (server.status?.tileScale ?? 100);
+  const tileScale = tileScalePercent / 100;
   const brandTitle = server.status?.brandTitle ?? '家庭控制';
   // 农历副标题：后端内置历法计算（中国时区），点击打开黄历详情；未加载好时不显示。
   const homeSubline = almanac?.text ?? '';

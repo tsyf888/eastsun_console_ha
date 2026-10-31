@@ -16,6 +16,8 @@ export interface AdminSettings {
   accent: Accent;
   /** UI 风格（设置 → 显示）：与主题、强调色组合使用。 */
   style: Style;
+  /** 显示范围（设置 → 全局显示）：global 所有屏幕共用主题/风格/格子大小；custom 每块屏幕可在本机显示里自行设置。 */
+  appearanceScope: 'global' | 'custom';
   /** 季节规则：启用后由控制台在 HA 中维护季节辅助元素和三条季节自动化。 */
   seasonRules: boolean;
   /** 音乐页内嵌地址；为空表示未配置。 */

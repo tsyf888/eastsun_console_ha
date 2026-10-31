@@ -180,6 +180,8 @@ export interface ServerStatus {
   accent?: Accent;
   /** UI 风格（设置 → 显示），所有屏幕共用；旧服务没有时按 iOS17 经典。 */
   style?: Style;
+  /** 显示范围（设置 → 全局显示）：global 所有屏幕共用主题/风格/格子大小；custom 每块屏幕可在本机显示里自行设置。 */
+  appearanceScope?: 'global' | 'custom';
   /** 季节（设置 → 自动化 → 季节规则）；未启用季节规则时为 null。 */
   season?: Season | null;
   /** 音乐页内嵌地址（设置 → 音乐）；为空表示未配置，不显示音乐入口。 */
@@ -377,7 +379,7 @@ export class ConsoleClient {
   private handle(message: ServerMessage) {
     switch (message.type) {
       case 'hello': this.handlers.onHello(message.catalogue, message.layout, message.custom); return;
-      case 'status': this.handlers.onStatus({ dataSource: message.dataSource, controlEnabled: message.controlEnabled, motionCapture: message.motionCapture, homeTitle: message.homeTitle, brandTitle: message.brandTitle, theme: message.theme, tileScale: message.tileScale, accent: message.accent, style: message.style, season: message.season, musicUrl: message.musicUrl, allOffKinds: message.allOffKinds, allOffScopes: message.allOffScopes, allOffEntities: message.allOffEntities, allOffExcludes: message.allOffExcludes, weatherPlace: message.weatherPlace, people: message.people, go2rtc: message.go2rtc, occupancy: message.occupancy, ha: message.ha }); return;
+      case 'status': this.handlers.onStatus({ dataSource: message.dataSource, controlEnabled: message.controlEnabled, motionCapture: message.motionCapture, homeTitle: message.homeTitle, brandTitle: message.brandTitle, theme: message.theme, tileScale: message.tileScale, accent: message.accent, style: message.style, appearanceScope: message.appearanceScope, season: message.season, musicUrl: message.musicUrl, allOffKinds: message.allOffKinds, allOffScopes: message.allOffScopes, allOffEntities: message.allOffEntities, allOffExcludes: message.allOffExcludes, weatherPlace: message.weatherPlace, people: message.people, go2rtc: message.go2rtc, occupancy: message.occupancy, ha: message.ha }); return;
       case 'catalogue': this.handlers.onCatalogue(message.catalogue); return;
       case 'custom': this.handlers.onCustom(message.custom); return;
       case 'entities': this.handlers.onEntities(message.changed, Boolean(message.snapshot), message.timers); return;

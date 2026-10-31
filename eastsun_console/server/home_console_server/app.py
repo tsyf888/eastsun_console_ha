@@ -372,7 +372,8 @@ class ConsoleServer:
         return {"type": "status", "dataSource": settings.data_source, "controlEnabled": settings.control_enabled,
                 "motionCapture": settings.motion_capture,
                 "homeTitle": settings.home_title, "brandTitle": settings.brand_title, "theme": settings.theme,
-                "tileScale": settings.tile_scale, "accent": settings.accent, "style": settings.style, "season": self.season.season(),
+                "tileScale": settings.tile_scale, "accent": settings.accent, "style": settings.style,
+                "appearanceScope": settings.appearance_scope, "season": self.season.season(),
                 "musicUrl": settings.music_url,
                 "allOffKinds": settings.all_off_kinds, "allOffScopes": settings.all_off_scopes,
                 "allOffEntities": settings.all_off_entities,
@@ -1159,6 +1160,12 @@ class ConsoleServer:
             if body["style"] != settings.style:
                 settings.style = body["style"]
                 changed.append("style")
+        if "appearanceScope" in body:
+            if body["appearanceScope"] not in ("global", "custom"):
+                return web.json_response({"error": "显示范围只能是全局或自定义"}, status=400)
+            if body["appearanceScope"] != settings.appearance_scope:
+                settings.appearance_scope = body["appearanceScope"]
+                changed.append("appearanceScope")
         season_sync = False
         if "seasonRules" in body:
             if not isinstance(body["seasonRules"], bool):

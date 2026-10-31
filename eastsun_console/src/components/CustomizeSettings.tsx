@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Battery, Blinds, Cctv, DoorOpen, Droplets, House, Lightbulb, Link2, Pencil, PersonStanding, Pin, Plus, Search, Sparkles, Thermometer, Trash2, X, ZoomIn } from 'lucide-react';
+import { ArrowDown, ArrowUp, Battery, Blinds, Cctv, DoorOpen, Droplets, Grid2x2, House, Lightbulb, Link2, Minus, Palette, Pencil, PersonStanding, Pin, Plus, RotateCcw, Search, Sparkles, Thermometer, Trash2, X, ZoomIn } from 'lucide-react';
 import { CollapsibleCard } from './CollapsibleCard';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
@@ -10,6 +10,8 @@ import { entityKindLabel, isSceneTarget, sceneDisplayName } from '../haAdapter';
 import { findAnyIcon, findSceneIcon, DEVICE_ICONS, PHU_ICONS, ROOM_ICONS, SCENE_ICONS } from '../icons';
 import type { IconChoice } from '../icons';
 import { roomIcon } from '../appearance';
+import { LOCAL_APPEARANCE_EVENT, readLocalAppearance, resetLocalAppearance, saveLocalAppearance, STYLES } from '../theme';
+import type { Style, ThemeMode } from '../theme';
 
 /** 设置列表中回显摄像头接入信息时隐藏账号密码：RTSP 只留主机端口路径，ONVIF 显示 onvif://主机:端口。 */
 function describeCamera(camera: CustomConfig['cameras'][number]): string {
@@ -602,6 +604,82 @@ export function HomeDisplaySettings() {
         <button type="button" className="small-button" onClick={() => { setTimeScale(1); setWeatherScale(1); writeScale('time', 1); writeScale('weather', 1); }}>恢复默认大小</button>
       )}
     </section>
+  );
+}
+
+/** 设置 → 本机显示：显示范围为“自定义”时，每块屏幕自己的主题、风格与格子大小（只写 localStorage）。 */
+interface LocalAppearanceSettingsProps {
+  /** 管理员在“全局显示”里选择的显示范围；全局时这里只作说明。 */
+  scope: 'global' | 'custom';
+  /** 全局主题模式；本机没有单独设置时沿用。 */
+  theme: ThemeMode;
+  /** 全局界面风格；本机没有单独设置时沿用。 */
+  style: Style;
+  /** 全局格子大小（80–120）；本机没有单独设置时沿用。 */
+  tileScale: number;
+}
+
+export function LocalAppearanceSettings({ scope, theme, style, tileScale }: LocalAppearanceSettingsProps) {
+  const [local, setLocal] = useState(readLocalAppearance);
+  useEffect(() => {
+    const sync = () => setLocal(readLocalAppearance());
+    window.addEventListener(LOCAL_APPEARANCE_EVENT, sync);
+    return () => window.removeEventListener(LOCAL_APPEARANCE_EVENT, sync);
+  }, []);
+
+  if (scope !== 'custom') {
+    return (
+      <section className="settings-card">
+        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题、风格与格子大小</h3><p>当前由管理员统一设置（全局模式），所有屏幕共用。管理员在“全局显示”里改为自定义后，这里会出现本机专属的主题、风格与格子大小设置。</p></div></div>
+      </section>
+    );
+  }
+
+  const currentTheme = local.theme ?? theme;
+  const currentStyle = local.style ?? style;
+  const currentScale = local.tileScale ?? tileScale;
+  const hasLocal = Boolean(local.theme || local.style || local.tileScale);
+  return (
+    <>
+      <section className="settings-card">
+        <div className="settings-card__heading"><span className="tile__chip"><Palette size={20} /></span><div><h3>主题</h3><p>仅对当前这块屏幕生效。自动模式按本屏天气的日出日落切换深浅色；未单独设置时跟随全局。</p></div></div>
+        <div className="settings-row">
+          <span>主题</span>
+          <div className="settings-segmented" role="radiogroup" aria-label="本机主题">
+            {([['light', '浅色'], ['dark', '深色'], ['auto', '自动']] as const).map(([value, label]) => (
+              <button key={value} type="button" role="radio" aria-checked={currentTheme === value} onClick={() => { if (currentTheme !== value) saveLocalAppearance({ theme: value }); }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-card__heading"><span className="tile__chip"><Sparkles size={20} /></span><div><h3>风格</h3><p>仅对当前这块屏幕生效，可与主题、强调色任意组合；未单独设置时跟随全局。</p></div></div>
+        <div className="settings-styles" role="radiogroup" aria-label="本机界面风格">
+          {STYLES.map(({ value, label, hint }) => {
+            const current = currentStyle === value;
+            return (
+              <button key={value} type="button" role="radio" aria-checked={current} className="settings-style" onClick={() => { if (!current) saveLocalAppearance({ style: value }); }}>
+                <span className={`settings-style__preview settings-style__preview--${value}`} aria-hidden="true"><i /><i /><i /></span>
+                <span className="settings-style__text"><strong>{label}</strong><small>{hint}</small></span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+      <section className="settings-card">
+        <div className="settings-card__heading"><span className="tile__chip"><Grid2x2 size={20} /></span><div><h3>格子大小</h3><p>仅对当前这块屏幕生效。设备卡片连同文字、按钮一起按比例缩放；未单独设置时跟随全局。</p></div></div>
+        <div className="settings-scale">
+          <label htmlFor="local-tile-scale">缩放</label>
+          <div className="settings-scale__control">
+            <button type="button" className="icon-button" onClick={() => saveLocalAppearance({ tileScale: Math.max(80, currentScale - 1) })} disabled={currentScale <= 80} aria-label="缩小 1%"><Minus size={16} /></button>
+            <input id="local-tile-scale" type="range" min="80" max="120" step="1" value={currentScale} onChange={(event) => saveLocalAppearance({ tileScale: Number(event.target.value) })} />
+            <button type="button" className="icon-button" onClick={() => saveLocalAppearance({ tileScale: Math.min(120, currentScale + 1) })} disabled={currentScale >= 120} aria-label="放大 1%"><Plus size={16} /></button>
+          </div>
+          <output htmlFor="local-tile-scale">{currentScale}%</output>
+        </div>
+        {hasLocal && <button type="button" className="small-button" onClick={resetLocalAppearance}><RotateCcw size={14} />恢复为跟随全局</button>}
+      </section>
+    </>
   );
 }
 

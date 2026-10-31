@@ -141,3 +141,55 @@ export function cachedStyle(): Style {
     return 'glass26';
   }
 }
+
+/** 本机显示（设置 → 本机显示）：显示范围为“自定义”时，每块屏幕自己的主题 / 风格 / 格子大小。 */
+const LOCAL_THEME_KEY = 'eastsun.appearance.theme';
+const LOCAL_STYLE_KEY = 'eastsun.appearance.style';
+const LOCAL_SCALE_KEY = 'eastsun.appearance.scale';
+export const LOCAL_APPEARANCE_EVENT = 'eastsun-appearance';
+
+export interface LocalAppearance {
+  theme?: ThemeMode;
+  style?: Style;
+  tileScale?: number;
+}
+
+/** 读取本机外观设置；没有设置过的项留空，由调用方回退到全局设置。 */
+export function readLocalAppearance(): LocalAppearance {
+  const result: LocalAppearance = {};
+  try {
+    const theme = localStorage.getItem(LOCAL_THEME_KEY);
+    if (theme === 'dark' || theme === 'light' || theme === 'auto') result.theme = theme;
+    const style = localStorage.getItem(LOCAL_STYLE_KEY);
+    if (isStyle(style)) result.style = style;
+    const scale = Number(localStorage.getItem(LOCAL_SCALE_KEY));
+    if (Number.isFinite(scale) && scale >= 80 && scale <= 120) result.tileScale = Math.round(scale);
+  } catch {
+    // 浏览器禁用存储时按未设置处理，全部回退到全局。
+  }
+  return result;
+}
+
+/** 保存本机外观并通知页面立即生效。 */
+export function saveLocalAppearance(patch: LocalAppearance): void {
+  try {
+    if (patch.theme) localStorage.setItem(LOCAL_THEME_KEY, patch.theme);
+    if (patch.style) localStorage.setItem(LOCAL_STYLE_KEY, patch.style);
+    if (typeof patch.tileScale === 'number') localStorage.setItem(LOCAL_SCALE_KEY, String(patch.tileScale));
+  } catch {
+    // 存储不可用时只影响本次刷新前的效果。
+  }
+  window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
+}
+
+/** 清除本机外观设置，回到跟随全局。 */
+export function resetLocalAppearance(): void {
+  try {
+    localStorage.removeItem(LOCAL_THEME_KEY);
+    localStorage.removeItem(LOCAL_STYLE_KEY);
+    localStorage.removeItem(LOCAL_SCALE_KEY);
+  } catch {
+    // 忽略存储不可用。
+  }
+  window.dispatchEvent(new Event(LOCAL_APPEARANCE_EVENT));
+}
