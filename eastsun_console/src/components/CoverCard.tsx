@@ -55,8 +55,8 @@ interface CoverCardProps {
 /** 窗帘 / 卷帘卡片：开合开关、位置滑杆（0 全关 - 100 全开）与停止。 */
 export function CoverCard({ layout, cover, room, onOpen, onClose, onStop, onPosition, onTilt, childDevices, onTimerSet, onTimerClear }: CoverCardProps) {
   const { size, editing, hkTiles: hk } = layout;
-  // HomeKit 模式：1×1 横排窄卡，2×1 用原版紧凑方形内容，点击按原结构。
-  const hkSmall = Boolean(hk) && size === '1x1';
+  // HomeKit 模式：所有尺寸都用横排窄卡（滑杆与角度切换移到详情弹窗）。
+  const hkSmall = Boolean(hk);
   const compact = size === '1x1' || Boolean(hk);
   const childCovers = childDevices ?? [];
   const hasChildren = childCovers.length > 0;

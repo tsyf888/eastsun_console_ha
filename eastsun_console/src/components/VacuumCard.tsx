@@ -41,10 +41,11 @@ interface VacuumCardProps {
 
 /** 扫地机器人卡片：状态、电量、清扫地图（HA image 实体经后端代理）、清扫 / 回充 / 寻找与档位控制。 */
 export function VacuumCard({ layout, vacuum, room, onToggle, onStart, onPause, onReturn, onLocate, onFanSpeed, onTimerSet, onTimerClear }: VacuumCardProps) {
-  const { size, editing } = layout;
+  const { size, editing, hkTiles } = layout;
   const DeviceIcon = deviceIcon(vacuum);
   const disabled = !vacuum.available || Boolean(editing);
-  const compact = size === '1x1';
+  // HomeKit 模式一律横排紧凑卡（默认 2×1 也一样），点齿轮进详情做清扫控制。
+  const compact = size === '1x1' || Boolean(hkTiles);
   const busy = vacuum.status === 'cleaning' || vacuum.status === 'returning';
   const detailId = useId();
   const detailRef = useRef<HTMLDialogElement>(null);

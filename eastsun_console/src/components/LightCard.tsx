@@ -85,8 +85,8 @@ export function LightCard({ layout, light, room, onToggle, onChange, childDevice
   const DeviceIcon = deviceIcon(light);
   const variant = getLightVariant(light);
   const adjustable = variant !== 'switch';
-  // HomeKit 模式：1×1 用横排窄卡，2×1 大卡用原版紧凑方形内容（电源/名称/齿轮，不含滑块），点击按原结构。
-  const hkSmall = Boolean(hk) && size === '1x1';
+  // HomeKit 模式：所有尺寸都用横排窄卡（2×1 也不再显示滑块，长按进详情）。
+  const hkSmall = Boolean(hk);
   const compact = adjustable && (size === '1x1' || Boolean(hk));
   const childLights = childDevices ?? [];
   const hasChildren = childLights.length > 0;

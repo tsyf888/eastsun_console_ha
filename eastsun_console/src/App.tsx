@@ -541,6 +541,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
       size: tileSizeForDevice(device, layout.sizes[favoriteSizeKey(device.id)]),
       onSizeChange: (id, size) => changeSize(favoriteSizeKey(id), size),
       ...editingTile(device, index, favoriteDevices.length),
+      hkTiles: homekitTiles,
     });
   }
 
@@ -548,12 +549,12 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
   const favoriteSpans = favoriteDevices.map((device) => tileSizeForDevice(device, layout.sizes[favoriteSizeKey(device.id)]) === '2x1' ? 2 : 1);
   const duoActive = homeDuo && favoriteDevices.length > 0;
 
-  // HomeKit 比例只作用于灯 / 开关 / 风扇 / 窗帘四类卡片，其余卡片保持原样（在 HK 网格里占两行补齐）。
-  const hkTilesFor = (device: Device) => homekitTiles && (device.kind === 'light' || device.kind === 'switch' || device.kind === 'fan' || device.kind === 'cover');
+  // HomeKit 比例作用于所有设备与所有页面（灯、开关、风扇、窗帘、空调、播放器、扫地机……）。
+  const hkGridClass = homekitTiles ? ' adaptive-grid--hk' : '';
 
   /** “正在运行”用于查看和顺手关掉，统一用单格；只能双格的（播放器）保持默认。 */
   function runningCard(device: Device) {
-    return card(device, roomOf(device), { size: allowedSizesForDevice(device).includes('1x1') ? '1x1' : tileSizeForDevice(device), hkTiles: hkTilesFor(device) });
+    return card(device, roomOf(device), { size: allowedSizesForDevice(device).includes('1x1') ? '1x1' : tileSizeForDevice(device), hkTiles: homekitTiles });
   }
 
   function turnOffRunning() {
@@ -570,7 +571,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
       size: tileSizeForDevice(device, layout.sizes[device.id]),
       onSizeChange: changeSize,
       ...editingTile(device, index, selectedRoomDevices.length),
-      hkTiles: hkTilesFor(device),
+      hkTiles: homekitTiles,
     });
   }
 
@@ -610,8 +611,8 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
         <div className="hero__top">
           <span className="hero__brand">{homeGreeting(now)}</span>
           {(!compactActive || page !== 'home') && heroActions}
-          {/* 天气常驻页头操作行行尾：桌面端 CSS 隐藏（用右侧大天气卡），手机分辨率显示在设置按钮右边 */}
-          {page === 'home' && <WeatherCompact weather={weather} onOpen={() => setWeatherOpen(true)} />}
+          {/* 非紧凑模式：手机端天气显示在设置按钮右边。紧凑模式下改放到下方药丸行，避免贴住手机状态栏。 */}
+          {page === 'home' && !compactActive && <WeatherCompact weather={weather} onOpen={() => setWeatherOpen(true)} />}
         </div>
         {/* 手机端农历行：标题区在手机上整体隐藏，这里单独补一行可点的农历，点开黄历详情 */}
         {page === 'home' && homeSubline && (
@@ -633,6 +634,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               <div className="hero__pills-row">
                 {heroActions}
                 <HomeStatusSummary home={home} onOpen={setActiveList} onOpenBattery={() => setBatteryOpen(true)} onOpenTimers={() => setTimersOpen(true)} timersCount={timerItems.length} batteryEnabled={server.custom?.battery?.enabled !== false} />
+                <WeatherCompact weather={weather} onOpen={() => setWeatherOpen(true)} />
               </div>
             ) : (
               <>
@@ -665,7 +667,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                         {canControl && editButton}
                       </div>
                     </div>
-                    <SingleRowGrid className="tile-grid--quick" spans={favoriteSpans}>{favoriteDevices.map(favoriteCard)}</SingleRowGrid>
+                    <SingleRowGrid className={`tile-grid--quick${hkGridClass}`} spans={favoriteSpans}>{favoriteDevices.map(favoriteCard)}</SingleRowGrid>
                   </div>
                 </div>
                 {homeScenes.length > 0 && <SceneBoard title="常用情景" scenes={homeScenes} entities={server.catalogue?.entities ?? []} pendingId={pendingSceneId} onRun={runScene} style={server.custom?.sceneStyle} />}
@@ -682,7 +684,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                   </div>
                 </div>
                 {favoriteDevices.length > 0
-                  ? <AdaptiveGrid className="tile-grid tile-grid--quick" scale={tileScale}>{favoriteDevices.map(favoriteCard)}</AdaptiveGrid>
+                  ? <AdaptiveGrid className={`tile-grid tile-grid--quick${hkGridClass}`} scale={tileScale}>{favoriteDevices.map(favoriteCard)}</AdaptiveGrid>
                   : <div className="empty-room"><span className="empty-room__icon" aria-hidden="true"><Star size={22} /></span><p>还没有常用设备。进入房间点“编辑布局”，给设备点 ☆ 即可加入。</p></div>}
               </>
             )}
@@ -698,7 +700,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               </div>
             </div>
             {runningOthers.length > 0
-              ? <AdaptiveGrid className={`tile-grid tile-grid--running${homekitTiles ? ' adaptive-grid--hk' : ''}`} scale={tileScale}>{runningOthers.map(runningCard)}</AdaptiveGrid>
+              ? <AdaptiveGrid className={`tile-grid tile-grid--running${hkGridClass}`} scale={tileScale}>{runningOthers.map(runningCard)}</AdaptiveGrid>
               : runningNow === 0 && <div className="empty-room"><span className="empty-room__icon" aria-hidden="true"><Power size={22} /></span><p>目前没有打开的设备。</p></div>}
           </>
         )}
@@ -724,7 +726,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
               </div>
             </div>
             {selectedRoomDevices.length > 0
-              ? <AdaptiveGrid className={`tile-grid tile-grid--room${homekitTiles ? ' adaptive-grid--hk' : ''}`} scale={tileScale}>{selectedRoomDevices.map(roomCard)}</AdaptiveGrid>
+              ? <AdaptiveGrid className={`tile-grid tile-grid--room${hkGridClass}`} scale={tileScale}>{selectedRoomDevices.map(roomCard)}</AdaptiveGrid>
               : <EmptyRoomCard name={selectedRoom.name} />}
           </>
         )}
@@ -758,10 +760,11 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                       return (
                         <div className="category-group" key={group.kind}>
                           <h3 className="category-group__title"><GroupIcon size={17} aria-hidden="true" />{CATEGORY_META[group.kind].label}<em>· {group.devices.length} 个</em></h3>
-                          <AdaptiveGrid className="tile-grid tile-grid--category" scale={tileScale}>
+                          <AdaptiveGrid className={`tile-grid tile-grid--category${hkGridClass}`} scale={tileScale}>
                             {group.devices.map((device, index) => card(device, roomOf(device), {
                               size: tileSizeForDevice(device, layout.sizes[device.id]),
                               onSizeChange: changeSize,
+                              hkTiles: homekitTiles,
                               ...editingTile(device, index, group.devices.length, { scope: `category/${group.kind}`, ids }),
                             }))}
                           </AdaptiveGrid>
@@ -778,6 +781,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
             return card(device, roomOf(device), {
               size: tileSizeForDevice(device, layout.sizes[device.id]),
               onSizeChange: changeSize,
+              hkTiles: homekitTiles,
               ...editingTile(device, index, ordered.length),
             });
           }
@@ -797,7 +801,7 @@ function Console({ authenticated, onLogout, onAuthenticated, onOpenSetup }: Cons
                       {canControl && editButton}
                     </div>
                   </div>
-                  <AdaptiveGrid className="tile-grid tile-grid--category" scale={tileScale}>
+                  <AdaptiveGrid className={`tile-grid tile-grid--category${hkGridClass}`} scale={tileScale}>
                     {ordered.map((device, index) => categoryCard(device, index))}
                   </AdaptiveGrid>
                 </section>

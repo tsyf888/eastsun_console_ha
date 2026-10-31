@@ -26,8 +26,8 @@ interface FanCardProps {
 /** 风扇 / 新风机卡片：开关 + 百分比风速滑杆 + 预设风类（直吹风 / 自然风 / 进风 等）+ 摇头开关。 */
 export function FanCard({ layout, fan, room, onToggle, onSpeed, onPreset, onOscillate, onTimerSet, onTimerClear }: FanCardProps) {
   const { size, editing, hkTiles: hk } = layout;
-  // HomeKit 模式：1×1 横排窄卡，2×1 用原版紧凑方形内容，点击按原结构。
-  const hkSmall = Boolean(hk) && size === '1x1';
+  // HomeKit 模式：所有尺寸都用横排窄卡（长按进详情调速）。
+  const hkSmall = Boolean(hk);
   const DeviceIcon = deviceIcon(fan);
   const adjustable = fan.percentage !== undefined;
   // HA 上报 oscillating 属性才代表支持摇头。

@@ -853,8 +853,9 @@ strong { font-weight: 600; }
 /* 紧凑桌面排版（JS 依据分辨率自动启用，或设置 → 主页显示手动开关）：隐藏问候语与日期卡片，让时间 / 天气 / 药丸更突出 */
 .app-shell--compact .hero__brand { display: none; }
 .app-shell--compact .home-date-card { display: none; }
-/* 时间顶部与天气卡 top:14px 对齐：去掉 hero__title 的上边距，hero padding-top 减到 14px */
-.app-shell--compact .hero--home { padding-top: 14px; }
+/* 时间顶部与天气卡 top:14px 对齐：去掉 hero__title 的上边距，hero padding-top 减到 14px。
+   仍然叠加安全区：手机（尤其加主屏幕 / 沉浸模式）状态栏是透明的，内容必须避开电量和时间。 */
+.app-shell--compact .hero--home { padding-top: calc(14px + env(safe-area-inset-top)); }
 .app-shell--compact .hero--home .hero__title { margin-top: 0; }
 /* hero 不再固定 232px 高度，内容自然结束，下方板块往上靠（类特异性高于后文的 min-height 基础规则） */
 .app-shell--compact .hero--home { min-height: 0; }
@@ -867,6 +868,35 @@ strong { font-weight: 600; }
 .hero__pills-row .status-pill { min-height: 28px !important; padding: 3px 11px 3px 9px !important; font-size: 12px !important; white-space: nowrap; }
 .hero__pills-row .demo-flag { min-height: 28px !important; padding: 0 12px !important; white-space: nowrap; }
 .hero__pills-row .text-button { min-height: 28px !important; white-space: nowrap; }
+/* 紧凑桌面：天气卡不再脱离文档流。页头改成「左内容 + 右天气」两列，页头高度由天气卡撑开，
+   下方「常用情景 / 常用设备」随页头下移，情景按钮再多也不会压到天气卡上。
+   天气卡放在第 2 行（与时间同一行起始），不跨行，避免它的高度把第 1 行撑高、时间被顶到页面中间。 */
+@media (min-width: 721px) {
+  .app-shell--compact .hero--home {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--weather-w);
+    align-items: start;
+    column-gap: 30px;
+  }
+  .app-shell--compact .hero--home > .hero__top { grid-column: 1; grid-row: 1; }
+  .app-shell--compact .hero--home > .hero__body { grid-column: 1; grid-row: 2; min-width: 0; }
+  .app-shell--compact .hero--home > .hero__almanac { grid-column: 1; grid-row: 3; }
+  .app-shell--compact .hero--home > .hero__body > .hero__main { padding-right: 0; }
+  .app-shell--compact .hero--home > .weather-hero { position: static; grid-column: 2; grid-row: 2; align-self: start; width: 100%; margin: 0; }
+  /* 左列变窄时药丸与操作组在列内换行，不会钻到天气卡下面 */
+  .app-shell--compact .hero--home .hero__pills-row { flex-wrap: wrap; }
+  .app-shell--compact .hero--home .hero__pills-row > .hero__actions { flex-wrap: wrap; flex-shrink: 1; }
+  .app-shell--compact .hero--home .hero__pills-row > .status-row { flex-wrap: wrap; }
+}
+/* 紧凑模式手机：天气从顶栏移到药丸行（整行可换行、天气靠右、字号缩小），不再贴住手机状态栏 */
+@media (max-width: 720px) {
+  .app-shell--compact .hero--home { padding-top: calc(18px + env(safe-area-inset-top)); }
+  .hero__pills-row { flex-wrap: wrap; }
+  .hero__pills-row > .status-row { flex-wrap: wrap; }
+  .hero__pills-row .weather-compact { margin-left: auto; padding: 2px 2px 2px 8px; }
+  .hero__pills-row .weather-compact strong { font-size: 24px; }
+  .hero__pills-row .weather-compact span > small { margin-top: 0; font-size: 11px; }
+}
 
 /* 设置 → 主页显示：缩放滑杆 */
 .scale-slider { display: flex; align-items: center; gap: 10px; min-width: 220px; }
@@ -1055,11 +1085,11 @@ strong { font-weight: 600; }
 .tile--active::before { opacity: var(--glow-strength); }
 .tile--2x1 { grid-column: span 2; }
 .adaptive-grid[data-columns="1"] .tile--2x1 { grid-column: span 1; }
-/* ---------- HomeKit 卡片比例（本机开关）：灯/开关/风扇小卡约 2.4:1 宽扁，大卡同宽两倍高 ---------- */
+/* HomeKit 比例覆盖所有页面与设备：每个格都压成一行高，2×1 也不再占两行（播放器保留两列宽） */
 .adaptive-grid--hk { grid-auto-rows: calc(var(--cell-size) / 2.4); }
-/* 不参与 HomeKit 比例的卡片（窗帘/空调/摄像头/电视等）保持原内容高度：占两行补齐 */
-.adaptive-grid--hk .tile:not(.tile--hk) { grid-row: span 2; }
-.adaptive-grid--hk .tile--hk.tile--2x1 { grid-column: span 1; grid-row: span 2; }
+.adaptive-grid--hk .tile { grid-row: span 1; }
+.adaptive-grid--hk .tile--2x1 { grid-column: span 1; }
+.adaptive-grid--hk:not([data-columns="1"]) .tile.media-card { grid-column: span 2; }
 /* HomeKit 卡内容改横排：电源钮 + 名称/状态 + 右侧房间名（字体缩小一点） */
 .tile--hk { flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; padding: 9px 14px; position: relative; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .tile--hk .tile__top { display: contents; }
@@ -1070,6 +1100,59 @@ strong { font-weight: 600; }
 .tile--hk .tile__name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile--hk .tile__note { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile--hk .tile__room { position: absolute; top: 7px; right: 10px; font-size: 10px; }
+/* 空调 HomeKit 单行：模式图标 + 名称/状态 + 目标温度（1×1 原本把温度绝对定位到右上角，这里拉回行内） */
+.tile.tile--hk.climate-card { padding: 9px 14px; }
+.tile--hk.climate-card .climate-card__bottom { flex: 1; min-width: 0; align-items: center; gap: 6px; }
+.tile--hk.climate-card .climate-card__summary { display: flex; flex: 1; min-width: 0; align-items: center; gap: 8px; }
+.tile--hk.climate-card .climate-card__summary .tile__name { flex: 1; min-width: 0; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile--hk.climate-card .climate-card__target { position: static; z-index: auto; flex: none; margin: 0; font-size: 24px; }
+.tile--hk.climate-card .climate-card__target small { font-size: 13px; }
+.tile--hk.climate-card .climate-card__note { display: none !important; }
+.tile--1x1.tile--hk.climate-card .climate-card__note--short { display: block !important; }
+.tile--hk.climate-card .climate-card__actions { display: none; }
+/* 播放器 HomeKit 单行：隐去封面与音量，保留名称/状态、房间名与播放键 */
+.tile.tile--hk.media-card { padding: 9px 14px; }
+.tile--hk.media-card .media-card__art { display: none; }
+.tile--hk.media-card .media-card__header { flex: 1; min-width: 0; align-items: center; }
+.tile--hk.media-card .media-card__footer { flex: none; }
+.tile--hk.media-card .media-card__detail, .tile--hk.media-card .media-card__volume { display: none; }
+/* 播放器右侧是操作按钮，房间名放在右上角会和按钮重叠：HomeKit 模式下不显示房间名 */
+.tile--hk.media-card .tile__room { display: none; }
+
+/* ---------- HomeKit 卡片的风格化细节（只调整行高下的描边/光效强度，几何不变） ---------- */
+/* 玻璃：行卡去掉大面积内光（74px 内发光在 61px 高里会糊），改成细内圈 + 开态染色 */
+:root[data-style="glass26"] .tile--hk { box-shadow: var(--highlight), var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, .14); }
+:root[data-style="glass26"] .tile--hk.tile--active {
+  background:
+    linear-gradient(120deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, .06) 56%),
+    radial-gradient(130% 160% at 0% 50%, color-mix(in srgb, var(--glow) 34%, transparent), transparent 72%),
+    var(--glass);
+}
+/* 果冻：扁卡做成药丸，开态锁一圈高光描边而不是大面积外发光 */
+:root[data-style="jelly"] .tile--hk { border-radius: 999px; }
+:root[data-style="jelly"] .tile--hk.tile--active { box-shadow: var(--highlight), inset 0 0 0 1px color-mix(in srgb, var(--glow) 45%, transparent), 0 0 26px -10px var(--glow); }
+/* 素墨：直角 + 单色，开态用左侧实心竖条表达，不用彩色光 */
+:root[data-style="ink"] .tile--hk { box-shadow: inset 0 0 0 1px var(--glass-border); }
+:root[data-style="ink"] .tile--hk.tile--active { box-shadow: inset 3px 0 0 var(--text), inset 0 0 0 1px var(--text); }
+/* 舰桥：左侧刻度条 + 等宽数字，像通电仪表的读数 */
+:root[data-style="helm"] .tile--hk { border-radius: var(--radius-sm); }
+:root[data-style="helm"] .tile--hk .tile__note { font-variant-numeric: tabular-nums; }
+:root[data-style="helm"] .tile--hk.tile--active { box-shadow: inset 2px 0 0 var(--glow), var(--highlight), 0 0 22px -10px var(--glow); }
+/* 庭院：双线木框在扁卡上过粗，缩成单线；开态左侧木色竖线 */
+:root[data-style="courtyard"] .tile--hk { box-shadow: inset 0 0 0 1px rgba(150, 110, 66, .28), var(--shadow); }
+:root[data-theme="light"][data-style="courtyard"] .tile--hk { box-shadow: inset 0 0 0 1px rgba(122, 88, 52, .28), var(--shadow); }
+:root[data-style="courtyard"] .tile--hk.tile--active { box-shadow: inset 3px 0 0 rgba(150, 110, 66, .5), inset 0 0 0 1px rgba(150, 110, 66, .42), var(--shadow); }
+/* 青瓷：釉光从整卡收到内圈细线，开态加一层冷釉光 */
+:root[data-style="porcelain"] .tile--hk { box-shadow: var(--highlight), inset 0 0 0 1px rgba(180, 255, 240, .1), var(--shadow); }
+:root[data-style="porcelain"] .tile--hk.tile--active { box-shadow: var(--highlight), inset 0 0 0 1px rgba(180, 255, 240, .26), 0 0 22px -12px var(--glow), var(--shadow); }
+/* 霓虹：描边本身发光，开态加亮 */
+:root[data-style="neon"] .tile--hk { box-shadow: var(--highlight), inset 0 0 0 1px rgba(255, 92, 220, .18), 0 0 18px -12px rgba(255, 92, 220, .5); }
+:root[data-style="neon"] .tile--hk.tile--active { box-shadow: var(--highlight), inset 0 0 0 1px color-mix(in srgb, var(--glow) 60%, transparent), 0 0 26px -8px var(--glow); }
+/* 沙丘：暖色 1px 内框，开态靠柔和内影而不是强光 */
+:root[data-style="sand"] .tile--hk { box-shadow: var(--highlight), inset 0 0 0 1px rgba(230, 208, 170, .1), var(--shadow); }
+:root[data-style="sand"] .tile--hk.tile--active { box-shadow: var(--highlight), inset 0 0 0 1px color-mix(in srgb, var(--glow) 30%, transparent), 0 14px 26px -24px #000; }
+/* 雅致：哑光纸面靠细描边区分开态，左侧加一条更实的强调线 */
+:root[data-style="atelier"] .tile--hk.tile--active { box-shadow: var(--highlight), inset 0 0 0 1px rgba(var(--accent-rgb), .4), inset 3px 0 0 rgba(var(--accent-rgb), .55); }
 .tile__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .tile__chip { display: grid; place-items: center; width: var(--card-glyph, 42px); height: var(--card-glyph, 42px); flex: none; border-radius: 14px; background: var(--surface-2); color: var(--text-2); box-shadow: var(--highlight); transition: background-color .25s, color .25s; }
 .tile--active .tile__chip { background: color-mix(in srgb, var(--glow) 18%, transparent); color: var(--glow); }

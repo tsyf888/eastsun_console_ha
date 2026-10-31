@@ -533,6 +533,78 @@ type IconPickerState =
   | { kind: 'scene-add' }
   | null;
 
+/**
+ * 主页显示偏好：全部保存在本机 localStorage，只影响当前这块屏幕，不同步到服务端。
+ * 因此普通成员也可以使用（不涉及房间 / 设备等共用配置）。
+ */
+export function HomeDisplaySettings() {
+  // ---- 主页显示缩放（本机生效） ----
+  const [timeScale, setTimeScale] = useState(() => Number(localStorage.getItem(SCALE_KEY_TIME)) || 1);
+  const [weatherScale, setWeatherScale] = useState(() => Number(localStorage.getItem(SCALE_KEY_WEATHER)) || 1);
+
+  // ---- 主页版面（本机生效）：classic 经典上下排布；duo 摄像头+常用同排（4:6）----
+  const [homeLayout, setHomeLayout] = useState<'classic' | 'duo'>(() => (localStorage.getItem(HOME_LAYOUT_KEY) === 'duo' ? 'duo' : 'classic'));
+  function writeHomeLayout(mode: 'classic' | 'duo') {
+    localStorage.setItem(HOME_LAYOUT_KEY, mode);
+    setHomeLayout(mode);
+    window.dispatchEvent(new Event('eastsun-home-layout'));
+  }
+
+  // ---- 紧凑排版（本机生效）：任意分辨率强制启用紧凑桌面排版（页头压缩、操作并入药丸行）----
+  const [compactLayout, setCompactLayout] = useState(() => localStorage.getItem(COMPACT_LAYOUT_KEY) === '1');
+  function writeCompactLayout(enabled: boolean) {
+    localStorage.setItem(COMPACT_LAYOUT_KEY, enabled ? '1' : '0');
+    setCompactLayout(enabled);
+    window.dispatchEvent(new Event('eastsun-compact-layout'));
+  }
+
+  // ---- HomeKit 卡片比例（本机生效）：灯/开关/风扇小卡约 2.4:1 宽扁、大卡同宽两倍高，长按弹设置 ----
+  const [homekitTiles, setHomekitTiles] = useState(() => localStorage.getItem(HOMEKIT_TILES_KEY) === '1');
+  function writeHomekitTiles(enabled: boolean) {
+    localStorage.setItem(HOMEKIT_TILES_KEY, enabled ? '1' : '0');
+    setHomekitTiles(enabled);
+    window.dispatchEvent(new Event('eastsun-homekit-tiles'));
+  }
+
+  return (
+    <CollapsibleCard icon={ZoomIn} title="主页显示">
+      <p className="settings-message">调整首页时间与天气卡片的大小，仅对当前这块屏幕生效（保存在本机）。</p>
+      <div className="settings-row">
+        <span><strong>主页版面</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>「同排」把摄像头与常用设备放在同一行（约 4:6），常用卡片单排自动缩放不换行；「经典」为原来的上下排布。</small></span>
+        <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
+          <button type="button" className={`small-button${homeLayout === 'classic' ? ' small-button--selected' : ''}`} onClick={() => writeHomeLayout('classic')} aria-pressed={homeLayout === 'classic'}>经典</button>
+          <button type="button" className={`small-button${homeLayout === 'duo' ? ' small-button--selected' : ''}`} onClick={() => writeHomeLayout('duo')} aria-pressed={homeLayout === 'duo'}>同排</button>
+        </span>
+      </div>
+      <div className="settings-row">
+        <span><strong>紧凑排版</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>在任意分辨率下启用紧凑桌面排版：隐藏问候语与日期卡片、页头压缩、操作与状态药丸合并单行。默认仅在紧凑桌面分辨率（如 1000×595）自动启用。</small></span>
+        <button type="button" role="switch" className="settings-switch" aria-checked={compactLayout} aria-label="紧凑排版" onClick={() => writeCompactLayout(!compactLayout)}><span /></button>
+      </div>
+      <div className="settings-row">
+        <span><strong>HomeKit 卡片比例</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>仅对当前设备生效。只建议移动端打开</small></span>
+        <button type="button" role="switch" className="settings-switch" aria-checked={homekitTiles} aria-label="HomeKit 卡片比例" onClick={() => writeHomekitTiles(!homekitTiles)}><span /></button>
+      </div>
+      <div className="settings-row">
+        <span><strong>时间缩放</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>首页大时钟的显示倍率。</small></span>
+        <span className="scale-slider">
+          <input type="range" min="0.7" max="3" step="0.05" value={timeScale} aria-label="时间缩放" onChange={(event) => { const value = Number(event.target.value); setTimeScale(value); writeScale('time', value); }} />
+          <small>{Math.round(timeScale * 100)}%</small>
+        </span>
+      </div>
+      <div className="settings-row">
+        <span><strong>天气卡片缩放</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>首页右上角天气卡片的显示倍率。</small></span>
+        <span className="scale-slider">
+          <input type="range" min="0.7" max="3" step="0.05" value={weatherScale} aria-label="天气卡片缩放" onChange={(event) => { const value = Number(event.target.value); setWeatherScale(value); writeScale('weather', value); }} />
+          <small>{Math.round(weatherScale * 100)}%</small>
+        </span>
+      </div>
+      {(timeScale !== 1 || weatherScale !== 1) && (
+        <button type="button" className="small-button" onClick={() => { setTimeScale(1); setWeatherScale(1); writeScale('time', 1); writeScale('weather', 1); }}>恢复默认大小</button>
+      )}
+    </CollapsibleCard>
+  );
+}
+
 /** 设置 → 房间：完全手动维护房间、设备归属和情景模式按钮；配置整份保存在控制台后端，所有屏幕共用。 */
 export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsProps) {
   const searchId = useId();
@@ -815,34 +887,6 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
     void mutate({ ...custom, occupancy }, '有人传感器已保存');
   }
 
-  // ---- 主页显示缩放（本机生效） ----
-  const [timeScale, setTimeScale] = useState(() => Number(localStorage.getItem(SCALE_KEY_TIME)) || 1);
-  const [weatherScale, setWeatherScale] = useState(() => Number(localStorage.getItem(SCALE_KEY_WEATHER)) || 1);
-
-  // ---- 主页版面（本机生效）：classic 经典上下排布；duo 摄像头+常用同排（4:6）----
-  const [homeLayout, setHomeLayout] = useState<'classic' | 'duo'>(() => (localStorage.getItem(HOME_LAYOUT_KEY) === 'duo' ? 'duo' : 'classic'));
-  function writeHomeLayout(mode: 'classic' | 'duo') {
-    localStorage.setItem(HOME_LAYOUT_KEY, mode);
-    setHomeLayout(mode);
-    window.dispatchEvent(new Event('eastsun-home-layout'));
-  }
-
-  // ---- 紧凑排版（本机生效）：任意分辨率强制启用紧凑桌面排版（页头压缩、操作并入药丸行）----
-  const [compactLayout, setCompactLayout] = useState(() => localStorage.getItem(COMPACT_LAYOUT_KEY) === '1');
-  function writeCompactLayout(enabled: boolean) {
-    localStorage.setItem(COMPACT_LAYOUT_KEY, enabled ? '1' : '0');
-    setCompactLayout(enabled);
-    window.dispatchEvent(new Event('eastsun-compact-layout'));
-  }
-
-  // ---- HomeKit 卡片比例（本机生效）：灯/开关/风扇小卡约 2.4:1 宽扁、大卡同宽两倍高，长按弹设置 ----
-  const [homekitTiles, setHomekitTiles] = useState(() => localStorage.getItem(HOMEKIT_TILES_KEY) === '1');
-  function writeHomekitTiles(enabled: boolean) {
-    localStorage.setItem(HOMEKIT_TILES_KEY, enabled ? '1' : '0');
-    setHomekitTiles(enabled);
-    window.dispatchEvent(new Event('eastsun-homekit-tiles'));
-  }
-
   // ---- 电量传感器偏好 ----
   function nextBattery(partial: Partial<NonNullable<CustomConfig['battery']>>) {
     return { ...(custom!.battery ?? {}), ...partial };
@@ -1058,42 +1102,6 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
               ))}
             </ul>
           )}
-      </CollapsibleCard>
-
-      <CollapsibleCard icon={ZoomIn} title="主页显示">
-        <p className="settings-message">调整首页时间与天气卡片的大小，仅对当前这块屏幕生效（保存在本机）。</p>
-        <div className="settings-row">
-          <span><strong>主页版面</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>「同排」把摄像头与常用设备放在同一行（约 4:6），常用卡片单排自动缩放不换行；「经典」为原来的上下排布。</small></span>
-          <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
-            <button type="button" className={`small-button${homeLayout === 'classic' ? ' small-button--selected' : ''}`} onClick={() => writeHomeLayout('classic')} aria-pressed={homeLayout === 'classic'}>经典</button>
-            <button type="button" className={`small-button${homeLayout === 'duo' ? ' small-button--selected' : ''}`} onClick={() => writeHomeLayout('duo')} aria-pressed={homeLayout === 'duo'}>同排</button>
-          </span>
-        </div>
-        <div className="settings-row">
-          <span><strong>紧凑排版</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>在任意分辨率下启用紧凑桌面排版：隐藏问候语与日期卡片、页头压缩、操作与状态药丸合并单行。默认仅在紧凑桌面分辨率（如 1000×595）自动启用。</small></span>
-          <button type="button" role="switch" className="settings-switch" aria-checked={compactLayout} aria-label="紧凑排版" onClick={() => writeCompactLayout(!compactLayout)}><span /></button>
-        </div>
-        <div className="settings-row">
-          <span><strong>HomeKit 卡片比例</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>仅对当前设备生效。只建议移动端打开</small></span>
-          <button type="button" role="switch" className="settings-switch" aria-checked={homekitTiles} aria-label="HomeKit 卡片比例" onClick={() => writeHomekitTiles(!homekitTiles)}><span /></button>
-        </div>
-        <div className="settings-row">
-          <span><strong>时间缩放</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>首页大时钟的显示倍率。</small></span>
-          <span className="scale-slider">
-            <input type="range" min="0.7" max="3" step="0.05" value={timeScale} aria-label="时间缩放" onChange={(event) => { const value = Number(event.target.value); setTimeScale(value); writeScale('time', value); }} />
-            <small>{Math.round(timeScale * 100)}%</small>
-          </span>
-        </div>
-        <div className="settings-row">
-          <span><strong>天气卡片缩放</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>首页右上角天气卡片的显示倍率。</small></span>
-          <span className="scale-slider">
-            <input type="range" min="0.7" max="3" step="0.05" value={weatherScale} aria-label="天气卡片缩放" onChange={(event) => { const value = Number(event.target.value); setWeatherScale(value); writeScale('weather', value); }} />
-            <small>{Math.round(weatherScale * 100)}%</small>
-          </span>
-        </div>
-        {(timeScale !== 1 || weatherScale !== 1) && (
-          <button type="button" className="small-button" onClick={() => { setTimeScale(1); setWeatherScale(1); writeScale('time', 1); writeScale('weather', 1); }}>恢复默认大小</button>
-        )}
       </CollapsibleCard>
 
       <CollapsibleCard icon={Battery} title="电量传感器">

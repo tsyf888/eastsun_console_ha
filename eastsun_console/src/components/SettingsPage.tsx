@@ -1,4 +1,4 @@
-import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, ListChecks, LogOut, Minus, Music, Palette, Plus, Power, RotateCcw, Server, ShieldCheck, Sparkles, Sun, Trash2, Upload, UserPlus, Workflow, X } from 'lucide-react';
+import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, ListChecks, LogOut, Minus, Music, Palette, Plus, Power, RotateCcw, Server, ShieldCheck, Smartphone, Sparkles, Sun, Trash2, Upload, UserPlus, Workflow, X } from 'lucide-react';
 import { useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, KeyboardEvent } from 'react';
 import type { LucideIcon } from 'lucide-react';
@@ -10,7 +10,7 @@ import { ACCENTS, STYLES, applyStyle } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
 import { connectionText } from './ConnectionBadge';
-import { CustomizeSettings } from './CustomizeSettings';
+import { CustomizeSettings, HomeDisplaySettings } from './CustomizeSettings';
 import { EntityFilter } from './EntityFilter';
 
 interface SettingsPageProps {
@@ -89,7 +89,7 @@ function kindLabel(value: string): string {
   return KIND_OPTIONS.find((option) => option.value === value)?.label ?? value;
 }
 
-type Tab = 'connection' | 'rooms' | 'devices' | 'music' | 'automations' | 'display' | 'security' | 'audit' | 'login';
+type Tab = 'connection' | 'rooms' | 'devices' | 'music' | 'automations' | 'display' | 'local' | 'security' | 'audit' | 'login';
 
 const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean; autoHidden?: boolean }[] = [
   { id: 'connection', label: '连接', icon: Server, adminOnly: true },
@@ -98,6 +98,8 @@ const allTabs: { id: Tab; label: string; icon: LucideIcon; adminOnly?: boolean; 
   { id: 'music', label: '音乐', icon: Music, adminOnly: true },
   { id: 'automations', label: '自动化', icon: Workflow, adminOnly: true },
   { id: 'display', label: '显示', icon: LayoutTemplate, adminOnly: true },
+  // 本机显示（主页版面、紧凑排版、HomeKit 比例、时间/天气缩放）只写 localStorage，不改共用配置，对所有登录用户开放。
+  { id: 'local', label: '本机显示', icon: Smartphone },
   // 安全页（账户体系）在侧边栏自动登录下无意义：密码重置/增删子账户会影响控制台自身账户，
   // 但侧边栏身份来自 HA，绕过了控制台账户体系，所以直接隐藏，避免歧义。
   { id: 'security', label: '安全', icon: KeyRound, adminOnly: true, autoHidden: true },
@@ -522,13 +524,15 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
               <small>普通成员 · 自动登录</small>
             </div>
           </section>
+          <HomeDisplaySettings />
         </div>
       );
     }
-    // 非管理员：直接渲染「登录」板块，不依赖 settings 数据。
+    // 非管理员：直接渲染「登录」板块，不依赖 settings 数据；本机显示偏好只写 localStorage，同样可用。
     return (
       <div className="settings">
         <LoginSection user={user} ingress={ingress} onLogout={onLogout} onAuthenticated={onAuthenticated} />
+        <HomeDisplaySettings />
       </div>
     );
   }
@@ -610,6 +614,7 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
         {tab === 'connection' && <PeopleSettings settings={settings} onSettings={setSettings} onExpired={onExpired} discovered={discovered} />}
 
         {tab === 'rooms' && <CustomizeSettings connected={Boolean(connected)} onExpired={onExpired} />}
+        {tab === 'local' && <HomeDisplaySettings />}
 
         {tab === 'devices' && <>
           <section className="settings-card">
