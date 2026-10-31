@@ -8,7 +8,7 @@ type SceneButton = CustomConfig['scenes'][number];
 interface SceneBoardProps {
   title: string;
   scenes: SceneButton[];
-  /** 按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省直角。 */
+  /** 按钮外观风格（设置 → 全局显示 → 风格）；缺省直角。 */
   style?: SceneStyle;
   /** 已发现的实体，用于按钮未命名时回退显示实体名称。 */
   entities: Pick<CatalogueEntity, 'id' | 'name'>[];

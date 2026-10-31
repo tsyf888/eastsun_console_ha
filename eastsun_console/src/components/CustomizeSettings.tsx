@@ -5,7 +5,7 @@ import type { KeyboardEvent, ReactNode } from 'react';
 import { ApiError, getCustom, getEntities, putCustom } from '../consoleApi';
 import type { DiscoveredEntities } from '../consoleApi';
 import type { CameraType, CatalogueEntity, CustomConfig, LabelInfo, MetricName } from '../consoleClient';
-import { cameraType, SCENE_STYLES } from '../consoleClient';
+import { cameraType } from '../consoleClient';
 import { entityKindLabel, isSceneTarget, sceneDisplayName } from '../haAdapter';
 import { findAnyIcon, findSceneIcon, DEVICE_ICONS, PHU_ICONS, ROOM_ICONS, SCENE_ICONS } from '../icons';
 import type { IconChoice } from '../icons';
@@ -1183,21 +1183,6 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
             <ScopeGroup key={room.id} label={room.name} scenes={custom.scenes.filter((scene) => scene.scope === room.id)} entityNameById={entityNameById} onMove={moveScene} onEdit={setEditingSceneId} onDelete={deleteScene} />
           ))}
           {custom.scenes.length === 0 && <p className="settings-message">还没有情景按钮，在下方添加。</p>}
-        </div>
-
-        <div className="scene-style-row">
-          <span className="scene-style-row__label">按钮风格</span>
-          <div className="scene-style-picker" role="radiogroup" aria-label="情景按钮风格">
-            {SCENE_STYLES.map(({ value, label }) => {
-              const current = (custom.sceneStyle ?? 'sharp') === value;
-              return (
-                <button key={value} type="button" role="radio" aria-checked={current} className="scene-style" onClick={() => { if (!current) void mutate({ ...custom, sceneStyle: value }, `按钮风格已改为${label}`); }}>
-                  <span className={`scene-style__swatch scene-style__swatch--${value}`} aria-hidden="true" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <div className="scene-add">

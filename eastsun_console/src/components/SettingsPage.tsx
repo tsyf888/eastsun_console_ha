@@ -2,10 +2,11 @@ import { Cctv, DoorOpen, Grid2x2, History, House, KeyRound, LayoutTemplate, List
 import { useEffect, useId, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, KeyboardEvent } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { ApiError, changePassword, createAccount, deleteAccount, getAccounts, getAudit, getCustom, getEntities, getSettings, login as loginApi, request, updateSettings, uploadPeopleImage } from '../consoleApi';
+import { ApiError, changePassword, createAccount, deleteAccount, getAccounts, getAudit, getCustom, getEntities, getSettings, login as loginApi, putCustom, request, updateSettings, uploadPeopleImage } from '../consoleApi';
 import type { AccountInfo, AdminSettings, AuditEntry, DiscoveredEntities, PersonConfig } from '../consoleApi';
-import type { CustomConfig } from '../consoleClient';
+import type { CustomConfig, SceneStyle } from '../consoleClient';
 import type { ServerStatus } from '../consoleClient';
+import { SCENE_STYLES } from '../consoleClient';
 import { ACCENTS, STYLES, applyStyle } from '../theme';
 import { AutomationList } from './AutomationList';
 import { CollapsibleCard } from './CollapsibleCard';
@@ -355,6 +356,20 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
     event.preventDefault();
     const patch = haToken.trim() ? { haUrl, haToken: haToken.trim() } : { haUrl };
     if (await save(patch, setConnectionMessage, '已保存到控制台服务')) setHaToken('');
+  }
+
+  /** 情景按钮风格保存在 custom.json；先取最新配置再合并，避免覆盖房间 / 情景的改动。 */
+  async function saveSceneStyle(style: SceneStyle, label: string) {
+    try {
+      const latest = await getCustom();
+      const next = await putCustom({ ...latest, sceneStyle: style });
+      setCustom(next);
+      setThemeMessage({ tone: 'good', text: `情景按钮风格已改为${label}` });
+      loadAudit();
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) onExpired(error.message);
+      else setThemeMessage({ tone: 'error', text: error instanceof Error ? error.message : '保存失败' });
+    }
   }
 
   async function saveMusic(event: FormEvent) {
@@ -818,6 +833,20 @@ export function SettingsPage({ status, user, ingress, firstRun, onLogout, onAuth
                   </button>
                 );
               })}
+            </div>
+            <div className="scene-style-row">
+              <span className="scene-style-row__label">情景模式按钮风格</span>
+              <div className="scene-style-picker" role="radiogroup" aria-label="情景模式按钮风格">
+                {SCENE_STYLES.map(({ value, label }) => {
+                  const current = (custom?.sceneStyle ?? 'sharp') === value;
+                  return (
+                    <button key={value} type="button" role="radio" aria-checked={current} className="scene-style" disabled={!connected} title={connected ? undefined : '连接 Home Assistant 后可调整'} onClick={() => { if (!current) void saveSceneStyle(value, label); }}>
+                      <span className={`scene-style__swatch scene-style__swatch--${value}`} aria-hidden="true" />
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <FormMessage message={themeMessage} />
           </section>

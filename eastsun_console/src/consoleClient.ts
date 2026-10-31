@@ -79,7 +79,7 @@ export interface CustomConfig {
   assignments: Record<string, string>;
   /** 情景按钮；scope 为 'home'（我的家庭页）或某个房间 id。name 为空时前端回退显示目标实体名称。 */
   scenes: { id: string; name: string; entity: string; scope: string; icon: string }[];
-  /** 情景按钮外观风格（设置 → 房间 → 情景模式按钮）；缺省直角。 */
+  /** 情景按钮外观风格（设置 → 全局显示 → 风格）；缺省直角。 */
   sceneStyle?: SceneStyle;
   /** 实体 id → 显示覆盖（改名 / 自定义图标）；name 或 icon 为空字符串表示跟随原名 / 自动匹配。 */
   entities: Record<string, { name: string; icon: string }>;
