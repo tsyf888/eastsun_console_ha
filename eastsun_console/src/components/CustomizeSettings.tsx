@@ -567,8 +567,8 @@ export function HomeDisplaySettings() {
   }
 
   return (
-    <CollapsibleCard icon={ZoomIn} title="主页显示" defaultOpen>
-      <p className="settings-message">调整首页时间与天气卡片的大小，仅对当前这块屏幕生效（保存在本机）。</p>
+    <section className="settings-card">
+      <div className="settings-card__heading"><span className="tile__chip"><ZoomIn size={20} /></span><div><h3>主页显示</h3><p>调整首页时间与天气卡片的大小，仅对当前这块屏幕生效（保存在本机）。</p></div></div>
       <div className="settings-row">
         <span><strong>主页版面</strong><small style={{ display: 'block', color: 'var(--text-2)', fontSize: '12px', fontWeight: 400 }}>「同排」把摄像头与常用设备放在同一行（约 4:6），常用卡片单排自动缩放不换行；「经典」为原来的上下排布。</small></span>
         <span style={{ display: 'flex', gap: 8, flex: 'none' }}>
@@ -601,7 +601,7 @@ export function HomeDisplaySettings() {
       {(timeScale !== 1 || weatherScale !== 1) && (
         <button type="button" className="small-button" onClick={() => { setTimeScale(1); setWeatherScale(1); writeScale('time', 1); writeScale('weather', 1); }}>恢复默认大小</button>
       )}
-    </CollapsibleCard>
+    </section>
   );
 }
 
@@ -1055,6 +1055,54 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
         {childPicker && <ChildBindPicker entities={data.entities} custom={custom} initialHostId={childPicker.hostId} onClose={() => { const back = childPicker.returnRoomId; setChildPicker(null); if (back) setPickerRoomId(back); }} onSave={saveChildren} />}
       </CollapsibleCard>
 
+      <CollapsibleCard icon={Sparkles} title="情景模式按钮">
+        <div className="scene-edit-list">
+          <ScopeGroup label="我的家庭" scenes={custom.scenes.filter((scene) => scene.scope === 'home')} entityNameById={entityNameById} onMove={moveScene} onEdit={setEditingSceneId} onDelete={deleteScene} />
+          {custom.rooms.map((room) => (
+            <ScopeGroup key={room.id} label={room.name} scenes={custom.scenes.filter((scene) => scene.scope === room.id)} entityNameById={entityNameById} onMove={moveScene} onEdit={setEditingSceneId} onDelete={deleteScene} />
+          ))}
+          {custom.scenes.length === 0 && <p className="settings-message">还没有情景按钮，在下方添加。</p>}
+        </div>
+
+        <div className="scene-add">
+          <label className="settings-field">
+            <span>按钮名称（可空，用实体名称）</span>
+            <input type="text" maxLength={SCENE_NAME_MAX} placeholder="留空则直接显示实体名称" value={sceneName} onChange={(event) => { setSceneName(event.target.value); setError(null); }} />
+          </label>
+          <label className="settings-field">
+            <span>放在哪里</span>
+            <select value={sceneScope} onChange={(event) => setSceneScope(event.target.value)}>
+              <option value="home">我的家庭（首页）</option>
+              {custom.rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
+            </select>
+          </label>
+          <label className="settings-field">
+            <span>指向的情景实体</span>
+            <select value={sceneTarget} onChange={(event) => { setSceneTarget(event.target.value); setManualTarget(''); }} disabled={manualTarget.trim() !== ''}>
+              <option value="">{sceneTargets.length > 0 ? '从已发现的实体中选择（按标签分组）' : '没有已发现的情景实体，可在下方手输实体 ID'}</option>
+              {targetGroups.map(({ label, members }) => (
+                <optgroup key={label.id} label={label.name}>{members.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}（{entity.id}）</option>)}</optgroup>
+              ))}
+              {unlabeledTargets.length > 0 && (
+                <optgroup label="未标签">{unlabeledTargets.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}（{entity.id}）</option>)}</optgroup>
+              )}
+            </select>
+          </label>
+          <label className="settings-field">
+            <span>手输实体 ID</span>
+            <input type="text" placeholder="如 button.xxx / scene.xxx / automation.xxx" value={manualTarget} onChange={(event) => setManualTarget(event.target.value)} spellCheck={false} />
+          </label>
+          <div className="settings-field">
+            <span>按钮图标</span>
+            <button type="button" className="icon-pick-button" onClick={() => setIconPicker({ kind: 'scene-add' })}>
+              <span className="room-icon-button"><SceneIconPreview icon={sceneIcon} /></span>
+              点按更换图标
+            </button>
+          </div>
+          <button type="button" className="small-button small-button--selected" onClick={addScene}><Plus size={15} />添加按钮</button>
+        </div>
+      </CollapsibleCard>
+
       <CollapsibleCard icon={Thermometer} title="温湿度来源">
         {metricCandidates.temperature.length + metricCandidates.humidity.length === 0
           ? <p className="settings-message">当前没有发现带温度 / 湿度数值的在线实体（空调、温湿度传感器等）。</p>
@@ -1174,54 +1222,6 @@ export function CustomizeSettings({ connected, onExpired }: CustomizeSettingsPro
             onClose={() => setBatteryAddOpen(false)}
           />
         )}
-      </CollapsibleCard>
-
-      <CollapsibleCard icon={Sparkles} title="情景模式按钮">
-        <div className="scene-edit-list">
-          <ScopeGroup label="我的家庭" scenes={custom.scenes.filter((scene) => scene.scope === 'home')} entityNameById={entityNameById} onMove={moveScene} onEdit={setEditingSceneId} onDelete={deleteScene} />
-          {custom.rooms.map((room) => (
-            <ScopeGroup key={room.id} label={room.name} scenes={custom.scenes.filter((scene) => scene.scope === room.id)} entityNameById={entityNameById} onMove={moveScene} onEdit={setEditingSceneId} onDelete={deleteScene} />
-          ))}
-          {custom.scenes.length === 0 && <p className="settings-message">还没有情景按钮，在下方添加。</p>}
-        </div>
-
-        <div className="scene-add">
-          <label className="settings-field">
-            <span>按钮名称（可空，用实体名称）</span>
-            <input type="text" maxLength={SCENE_NAME_MAX} placeholder="留空则直接显示实体名称" value={sceneName} onChange={(event) => { setSceneName(event.target.value); setError(null); }} />
-          </label>
-          <label className="settings-field">
-            <span>放在哪里</span>
-            <select value={sceneScope} onChange={(event) => setSceneScope(event.target.value)}>
-              <option value="home">我的家庭（首页）</option>
-              {custom.rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}
-            </select>
-          </label>
-          <label className="settings-field">
-            <span>指向的情景实体</span>
-            <select value={sceneTarget} onChange={(event) => { setSceneTarget(event.target.value); setManualTarget(''); }} disabled={manualTarget.trim() !== ''}>
-              <option value="">{sceneTargets.length > 0 ? '从已发现的实体中选择（按标签分组）' : '没有已发现的情景实体，可在下方手输实体 ID'}</option>
-              {targetGroups.map(({ label, members }) => (
-                <optgroup key={label.id} label={label.name}>{members.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}（{entity.id}）</option>)}</optgroup>
-              ))}
-              {unlabeledTargets.length > 0 && (
-                <optgroup label="未标签">{unlabeledTargets.map((entity) => <option key={entity.id} value={entity.id}>{entity.name}（{entity.id}）</option>)}</optgroup>
-              )}
-            </select>
-          </label>
-          <label className="settings-field">
-            <span>手输实体 ID</span>
-            <input type="text" placeholder="如 button.xxx / scene.xxx / automation.xxx" value={manualTarget} onChange={(event) => setManualTarget(event.target.value)} spellCheck={false} />
-          </label>
-          <div className="settings-field">
-            <span>按钮图标</span>
-            <button type="button" className="icon-pick-button" onClick={() => setIconPicker({ kind: 'scene-add' })}>
-              <span className="room-icon-button"><SceneIconPreview icon={sceneIcon} /></span>
-              点按更换图标
-            </button>
-          </div>
-          <button type="button" className="small-button small-button--selected" onClick={addScene}><Plus size={15} />添加按钮</button>
-        </div>
       </CollapsibleCard>
 
       <CollapsibleCard icon={Cctv} title="摄像头（RTSP / ONVIF）">
